@@ -6,7 +6,7 @@ const MessageSchema = new Schema({
     roomId: Number,
     userSenderId: Number,
     userRecipientId: Number,
-    date: Number,
+    date: Date,
     text: String,
 });
 

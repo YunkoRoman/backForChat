@@ -4,13 +4,18 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const {port} = require('./constants/port');
 
-const {messageRoutes} = require('./routes');
+const {messageRoutes, rigistrationRoutes, authRoutes} = require('./routes');
+const {socketService} = require('./socketService');
 
 const app = express();
+const http = require('http').Server(app);
+const io = require('socket.io')(http);
 
 mongoose.connect('mongodb://localhost:27017/myChat', { useNewUrlParser: true, useUnifiedTopology:true});
 
-
+io.on('connection', async socket => {
+    await socketService.Socket(socket, io);
+});
 
 app.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "http://localhost:4200");
@@ -28,6 +33,8 @@ app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 
 app.use('/message', messageRoutes);
+app.use('/registration', rigistrationRoutes);
+app.use('/auth', authRoutes);
 
 
 app.use((req, res, next) => {
@@ -46,7 +53,7 @@ app.use((err, req, res, next) => {
         })
 });
 
-app.listen(port, err => {
+http.listen(port, err => {
     if (err) console.error(err);
     console.log(`Server listen on port ${port}`);
 });
