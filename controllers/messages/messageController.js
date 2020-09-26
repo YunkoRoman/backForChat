@@ -1,4 +1,6 @@
 const {messageService} = require('../../services')
+const ControllerError = require('../../errors/ControllerError');
+
 module.exports = async (req, res, next) => {
     try {
         console.log(req.body);
@@ -10,6 +12,6 @@ module.exports = async (req, res, next) => {
         });
 
     } catch (e) {
-        console.log(e);
+        next(new ControllerError(e.message, e.status, 'controllers/messages/messageController'))
     }
 };

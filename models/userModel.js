@@ -6,7 +6,11 @@ const RegistrationSchema = new Schema({
     name: String,
     surname: String,
     email: String,
-    password: String
+    password: {
+        type: String,
+        required: true,
+        select: false,
+    },
 });
 
 const RegistrationModel = mongoose.model('users', RegistrationSchema);

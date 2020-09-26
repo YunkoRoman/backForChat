@@ -4,7 +4,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const {port} = require('./constants/port');
 
-const {messageRoutes, rigistrationRoutes, authRoutes} = require('./routes');
+const {messageRoutes, rigistrationRoutes, authRoutes, usersRoutes} = require('./routes');
 const {socketService} = require('./socketService');
 
 const app = express();
@@ -35,6 +35,7 @@ app.use(express.urlencoded({extended: true}));
 app.use('/message', messageRoutes);
 app.use('/registration', rigistrationRoutes);
 app.use('/auth', authRoutes);
+app.use('/users', usersRoutes);
 
 
 app.use((req, res, next) => {

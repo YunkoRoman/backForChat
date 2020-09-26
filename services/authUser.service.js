@@ -11,7 +11,7 @@ class authService {
 
         try {
             if (!email && !password) throw new Error('Some field is empty');
-            return userModel.find({
+            return userModel.findOne({
                 email,
                 password
             })
