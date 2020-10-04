@@ -1,12 +1,15 @@
-const mongoose = require('mongoose');
 const ControllerError = require('../errors/ControllerError');
 const {userModel} = require('../models');
 
 class UsersService {
 
-    findUsers() {
+    findUsers(_id) {
         try {
-            return userModel.find()
+            return userModel.find({
+                _id:{
+                    $ne:_id
+                }
+            })
 
 
         } catch (e) {

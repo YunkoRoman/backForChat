@@ -19,7 +19,17 @@ class MessageService {
             });
             messageModel.create(newMsg);
         } catch (e) {
-            throw new ControllerError(e.parent.mongoMsg, 500, 'messageService/saveMessage')
+            throw new ControllerError(e.message, e.status, 'messageService/saveMessage')
+
+        }
+    }
+
+    getMessages(userSenderId, userRecipientId) {
+        try {
+
+
+        } catch (e) {
+            throw new ControllerError(e.message, e.status, 'messageService/v')
 
         }
     }

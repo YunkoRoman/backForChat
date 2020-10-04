@@ -1,12 +1,13 @@
 const {usersService} = require('../../services');
 const ControllerError = require('../../errors/ControllerError');
+const tokenVerif = require("../../helpers/tokenVerifikator");
 
 module.exports = async (req, res, next) => {
     try {
-        console.log(req.body);
 
-       const usersList = await usersService.findUsers();
-        console.log(usersList);
+
+        const {id} = req.params;
+        const usersList = await usersService.findUsers(id);
 
         res.json({
             success: true,

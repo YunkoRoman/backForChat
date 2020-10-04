@@ -4,7 +4,6 @@ let {secret, AuthSecret} = require('../constants/secret');
 
 module.exports = {
     auth: token => {
-
         if (!token) throw new Error('No token');
         let user = null;
 
@@ -12,7 +11,6 @@ module.exports = {
             if (err) throw new Error('Not valid token');
             user = decode;
         });
-
         return user;
     },
 
