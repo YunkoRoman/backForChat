@@ -3,9 +3,12 @@ const ControllerError = require('../../errors/ControllerError');
 
 module.exports = async (req, res, next) => {
     try {
-        console.log(req.body);
+        const token = req.get('Authorization');
 
-        messageService.saveMessage(req.body);
+        const user = tokenVerif.auth(token);
+
+        const {_id: userSenderId} = user;
+        // messageService.saveMessage();
 
         res.json({
             success: true,

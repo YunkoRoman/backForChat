@@ -4,8 +4,8 @@ const {Schema} = mongoose;
 const MessageSchema = new Schema({
     _id: mongoose.Schema.Types.ObjectId,
     roomId: Number,
-    userSenderId: String,
-    userRecipientId: String,
+    userSender: Object,
+    userRecipient: Object,
     date: Date,
     text: String,
 });

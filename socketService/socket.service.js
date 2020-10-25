@@ -2,6 +2,7 @@ const ControllerError = require('../errors/ControllerError');
 const tokenVerif = require("../helpers/tokenVerifikator");
 const mongoose = require("mongoose");
 const messageModel = require("../models").messageModel;
+const {usersService} = require('../services');
 
 let users = {};
 
@@ -11,7 +12,7 @@ class SocketServise {
         try {
 
             socket.on('userId', data => {
-                console.log(data);
+
                 socket.userId = data.userId;
                 users[socket.userId] = socket;
 
@@ -19,37 +20,29 @@ class SocketServise {
             });
             socket.on('msg', async (data, cb) => {
                 try {
-                    const {token, msg, recipientId, date} = data;
-                    // console.log(token);
-                    if (token !== undefined || null) {
-                        const user = tokenVerif.auth(token);
-                        console.log(user);
-                        const {_id} = user;
+                    const {userRecipientId, userRecipientName, msg, senderId, senderName, date} = data;
 
-                        //***Create new private msg
+                    //***Create new private msg
 
-                        const newMsg = new messageModel({
-                            _id: new mongoose.Types.ObjectId(),
-                            userSenderId: _id,
-                            userRecipientId:recipientId,
-                            date,
-                            text: msg,
-                        });
-                        messageModel.create(newMsg);
+                    const newMsg = new messageModel({
+                        _id: new mongoose.Types.ObjectId(),
+                        userSender: {id: senderId, name: senderName},
+                        userRecipient: {id: userRecipientId, name: userRecipientName},
+                        date,
+                        text: msg,
+                    });
+                    messageModel.create(newMsg);
 
-                        cb(msg);
-                        if (users[recipientId]) {
-                            console.log(recipientId);
-                            console.log(users[recipientId].id);
-                            io.to(users[recipientId].id).emit('privateMsg', msg);
-                        }
+                    cb(userRecipientId, userRecipientName, msg, senderId, senderName, date);
+                    if (users[userRecipientId]) {
 
-
+                        io.to(users[userRecipientId].id).emit('privateMsg', msg);
                     }
-                }catch (e) {
+
+
+                } catch (e) {
                     console.log(e);
                 }
-
 
 
             })

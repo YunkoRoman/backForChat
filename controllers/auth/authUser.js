@@ -7,6 +7,7 @@ const {authUserService} = require('../../services');
 
 module.exports = async (req, res, next) => {
     try {
+        console.log(req.body);
         const {email, password} = req.body;
 
         if (!email && !password) throw new Error('Some field is empty');
@@ -18,6 +19,7 @@ module.exports = async (req, res, next) => {
         const {_id, name} = await UserIsRegistr;
 
         const token = tokinayzer.auth({_id, name});
+
         res.json({
             success: true,
             msg: token

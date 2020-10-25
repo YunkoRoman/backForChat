@@ -17,6 +17,18 @@ class UsersService {
 
         }
     }
+    findUser(_id) {
+        try {
+            return userModel.find({
+                _id
+            })
+
+
+        } catch (e) {
+            throw new ControllerError(e.message, e.status, 'userService/findUser')
+
+        }
+    }
 }
 
 
