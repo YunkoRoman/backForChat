@@ -5,12 +5,12 @@ const tokenVerif = require("../../helpers/tokenVerifikator");
 module.exports = async (req, res, next) => {
     try {
 
-        const token = req.get('Authorization');
+        const {id:userRecipientId, token} = req.body;
+
         const user = tokenVerif.auth(token);
         if (user !== undefined || null) {
 
             const {_id: userSenderId} = user;
-            const {id:userRecipientId} = req.params;
 
             const messages = await messageService.getMessages(userSenderId, userRecipientId);
 

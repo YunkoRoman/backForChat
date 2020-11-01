@@ -3,7 +3,7 @@ const router = require('express').Router();
 const {usersController} = require('../controllers/users');
 
 
-router.get('/lists/:id', usersController);
+router.post('/lists', usersController);
 
 
 module.exports = router;

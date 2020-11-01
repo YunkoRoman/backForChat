@@ -14,6 +14,7 @@ const io = require('socket.io')(http);
 mongoose.connect('mongodb://localhost:27017/myChat', { useNewUrlParser: true, useUnifiedTopology:true});
 
 io.on('connection', async socket => {
+    console.log('user connected ');
     await socketService.Socket(socket, io);
 });
 

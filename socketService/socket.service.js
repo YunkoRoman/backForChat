@@ -12,9 +12,10 @@ class SocketServise {
         try {
 
             socket.on('userId', data => {
-
+                console.log(data.userId);
                 socket.userId = data.userId;
                 users[socket.userId] = socket;
+                console.log(users);
 
 
             });
@@ -50,7 +51,10 @@ class SocketServise {
             throw new ControllerError(e.message, e.status, 'socketService')
         }
 
-
+        socket.on('disconnect', () => {
+            console.log('user disconnected');
+            console.log(users);
+        });
     }
 }
 

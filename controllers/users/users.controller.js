@@ -6,13 +6,18 @@ module.exports = async (req, res, next) => {
     try {
 
 
-        const {id} = req.params;
-        const usersList = await usersService.findUsers(id);
+        const {id, token} = req.body;
 
-        res.json({
-            success: true,
-            usersList
-        });
+        const user = tokenVerif.auth(token);
+        if (user !== undefined || null) {
+            const usersList = await usersService.findUsers(id);
+
+            res.json({
+                success: true,
+                usersList
+            })
+        }
+
 
     } catch (e) {
         next(new ControllerError(e.message, e.status, 'controllers/users/users.controller'))
