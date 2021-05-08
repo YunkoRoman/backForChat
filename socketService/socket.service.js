@@ -12,10 +12,10 @@ class SocketServise {
         try {
 
             socket.on('userId', data => {
-                console.log(data.userId);
+
                 socket.userId = data.userId;
                 users[socket.userId] = socket;
-                console.log(users);
+
 
 
             });
@@ -52,8 +52,9 @@ class SocketServise {
         }
 
         socket.on('disconnect', () => {
-            console.log('user disconnected');
-            console.log(users);
+
+            users[socket.userId] = null;
+
         });
     }
 }

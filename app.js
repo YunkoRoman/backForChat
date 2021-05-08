@@ -3,18 +3,22 @@ const path = require('path');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const {port} = require('./constants/port');
-
+const {
+    StatusCodes,
+    getReasonPhrase,
+} = require('http-status-codes');
 const {messageRoutes, rigistrationRoutes, authRoutes, usersRoutes} = require('./routes');
 const {socketService} = require('./socketService');
+
+mongoose.connect('mongodb://localhost:27017/myChat', { useNewUrlParser: true, useUnifiedTopology:true});
 
 const app = express();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 
-mongoose.connect('mongodb://localhost:27017/myChat', { useNewUrlParser: true, useUnifiedTopology:true});
 
 io.on('connection', async socket => {
-    console.log('user connected ');
+
     await socketService.Socket(socket, io);
 });
 
@@ -44,15 +48,13 @@ app.use((req, res, next) => {
     err.status = 404;
     next(err)
 });
-
 app.use((err, req, res, next) => {
     res
-        .status(err.status || 500)
+        .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
         .json({
-            success: false,
-            message: err.message || 'Unknown Error',
-            controller: err.controller
-        })
+            message: err.message || getReasonPhrase(StatusCodes.INTERNAL_SERVER_ERROR),
+            code: err.code,
+        });
 });
 
 http.listen(port, err => {

@@ -7,12 +7,13 @@ const {authUserService} = require('../../services');
 
 module.exports = async (req, res, next) => {
     try {
-
+        console.log(req.body);
         const {email, password} = req.body;
 
         if (!email && !password) throw new Error('Some field is empty');
 
         const UserIsRegistr = await authUserService.authUser(email, password);
+
 
         if ( UserIsRegistr === null) throw new Error('You are not register');
 
