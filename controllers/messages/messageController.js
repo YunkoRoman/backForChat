@@ -6,7 +6,7 @@ module.exports = async (req, res, next) => {
         const token = req.get('Authorization');
 
         const user = tokenVerif.auth(token);
-
+        console.log(user);
         const {_id: userSenderId} = user;
         // messageService.saveMessage();
 

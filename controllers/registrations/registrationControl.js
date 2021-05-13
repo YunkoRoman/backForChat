@@ -4,7 +4,6 @@ const {registrationService} = require('../../services')
 module.exports = async (req, res, next) => {
     try {
         const {form} = req.body;
-        console.log(form);
 
         registrationService.registerUser(form);
 

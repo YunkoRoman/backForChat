@@ -10,7 +10,7 @@ const {
 const {messageRoutes, rigistrationRoutes, authRoutes, usersRoutes} = require('./routes');
 const {socketService} = require('./socketService');
 
-mongoose.connect('mongodb://localhost:27017/myChat', { useNewUrlParser: true, useUnifiedTopology:true});
+mongoose.connect('mongodb+srv://chat:19162702@chat.pfw9i.mongodb.net/Chat?retryWrites=true&w=majority', { useNewUrlParser: true, useUnifiedTopology:true});
 
 const app = express();
 const http = require('http').Server(app);

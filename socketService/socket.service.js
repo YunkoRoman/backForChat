@@ -12,11 +12,8 @@ class SocketServise {
         try {
 
             socket.on('userId', data => {
-
                 socket.userId = data.userId;
                 users[socket.userId] = socket;
-
-
 
             });
             socket.on('msg', async (data, cb) => {
