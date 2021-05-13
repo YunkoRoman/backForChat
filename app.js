@@ -1,14 +1,16 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const dotenv = require('dotenv');
 const mongoose = require('mongoose');
-const {port} = require('./constants/port');
 const {
     StatusCodes,
     getReasonPhrase,
 } = require('http-status-codes');
 const {messageRoutes, rigistrationRoutes, authRoutes, usersRoutes} = require('./routes');
 const {socketService} = require('./socketService');
+
+dotenv.config();
 
 mongoose.connect('mongodb+srv://chat:19162702@chat.pfw9i.mongodb.net/Chat?retryWrites=true&w=majority', { useNewUrlParser: true, useUnifiedTopology:true});
 
@@ -21,6 +23,7 @@ io.on('connection', async socket => {
 
     await socketService.Socket(socket, io);
 });
+const PORT = process.env.PORT;
 
 app.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "http://localhost:4200");
@@ -57,7 +60,7 @@ app.use((err, req, res, next) => {
         });
 });
 
-http.listen(port, err => {
+http.listen(PORT, err => {
     if (err) console.error(err);
-    console.log(`Server listen on port ${port}`);
+    console.log(`Server listen on port ${PORT}`);
 });
