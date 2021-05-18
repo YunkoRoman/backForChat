@@ -11,8 +11,8 @@ const {messageRoutes, rigistrationRoutes, authRoutes, usersRoutes} = require('./
 const {socketService} = require('./socketService');
 
 dotenv.config();
-
-mongoose.connect('mongodb+srv://chat:19162702@chat.pfw9i.mongodb.net/Chat?retryWrites=true&w=majority', { useNewUrlParser: true, useUnifiedTopology:true});
+const MONGO_PATH = process.env.DB_MONGO_PATH;
+mongoose.connect(MONGO_PATH, { useNewUrlParser: true, useUnifiedTopology:true});
 
 const app = express();
 const http = require('http').Server(app);

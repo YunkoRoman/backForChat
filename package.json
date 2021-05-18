@@ -13,10 +13,10 @@
     "jsonwebtoken": "^8.5.1",
     "mongodb": "^3.6.0",
     "mongoose": "^5.10.0",
-    "nodemon": "^2.0.4",
+
     "socket.io": "^2.3.0"
   },
-  "devDependencies": {},
+  "devDependencies": {"nodemon": "^2.0.4"},
   "scripts": {
     "start": "node app",
     "start:dev": "nodemon",
