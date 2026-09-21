@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../features/auth/AuthContext';
 import { useSocket } from '../api/SocketContext';
 import { useNavigate } from 'react-router-dom';
@@ -8,12 +9,14 @@ import {
   useUsers,
   NewConversationModal,
   ConversationHeader,
+  type Conversation,
 } from '../features/conversations';
 import { MessageList, Composer } from '../features/chat';
 
 export function ChatPage() {
   const { logout, user } = useAuth();
-  const { setActiveConversation } = useSocket();
+  const { setActiveConversation, on, off } = useSocket();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [showNewConversationModal, setShowNewConversationModal] = useState(false);
@@ -42,6 +45,74 @@ export function ChatPage() {
     // Notify the socket context so it can join the room
     setActiveConversation(conversationId);
   };
+
+  // Subscribe to message:new at the app level for handling background conversation updates
+  useEffect(() => {
+    const handleNewMessage = (data: unknown) => {
+      const messageData = data as {
+        messageId: string;
+        conversationId: string;
+        senderId: string;
+        text: string;
+        createdAt: string;
+      };
+
+      // Only handle messages for conversations that are NOT active
+      if (messageData.conversationId === activeConversationId) {
+        return; // MessageList handles this
+      }
+
+      // For background conversations, update the conversation list to bump to top
+      // We do this by re-sorting conversations based on the new message timestamp
+      queryClient.setQueryData(
+        ['conversations'],
+        (oldData: Conversation[] | undefined) => {
+          if (!Array.isArray(oldData)) {
+            return oldData;
+          }
+
+          // Find the conversation that this message belongs to
+          const conversationIndex = oldData.findIndex(
+            (c) => c.conversationId === messageData.conversationId
+          );
+
+          if (conversationIndex === -1) {
+            return oldData; // Conversation not in list
+          }
+
+          // Create a new array with the updated conversation moved to the top.
+          // Build a new conversation object rather than mutating the cached
+          // one in place - React Query (and React generally) assumes cache
+          // entries are immutable; mutating them can leave stale references
+          // wherever something captured the old object before this update.
+          const updated = [...oldData];
+          const [existing] = updated.splice(conversationIndex, 1);
+
+          // Update the conversation's createdAt to the new message's timestamp
+          // This is a workaround since the backend data gap prevents tracking "last activity"
+          const movedConversation = { ...existing, createdAt: messageData.createdAt };
+
+          // Put it at the top
+          return [movedConversation, ...updated];
+        }
+      );
+    };
+
+    on<{
+      messageId: string;
+      conversationId: string;
+      senderId: string;
+      text: string;
+      createdAt: string;
+    }>(
+      'message:new',
+      handleNewMessage as (...args: unknown[]) => void
+    );
+
+    return () => {
+      off('message:new', handleNewMessage as (...args: unknown[]) => void);
+    };
+  }, [activeConversationId, queryClient, on, off]);
 
   const handleConversationCreated = (conversationId: string) => {
     // Select the newly created conversation

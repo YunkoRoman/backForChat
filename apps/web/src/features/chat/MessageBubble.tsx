@@ -6,6 +6,7 @@ export interface MessageBubbleProps {
   text: string;
   createdAt: string;
   isOwnMessage: boolean;
+  isRead?: boolean;
 }
 
 /**
@@ -19,6 +20,7 @@ export function MessageBubble({
   text,
   createdAt,
   isOwnMessage,
+  isRead = false,
 }: MessageBubbleProps) {
   const createdDate = new Date(createdAt);
   const timeStr = createdDate.toLocaleTimeString('uk-UA', {
@@ -60,24 +62,24 @@ export function MessageBubble({
             }}
           >
             <span style={{ fontSize: '11px', color: '#A39B92' }}>{timeStr}</span>
-            {/* Double checkmark for read (will be updated by 5.6) */}
+            {/* Double checkmark for read status */}
             <svg
               width="15"
               height="10"
               viewBox="0 0 18 10"
               fill="none"
-              style={{ opacity: 0.5 }}
+              style={{ opacity: isRead ? 1 : 0.5 }}
             >
               <path
                 d="M1 5L5 9L11 1"
-                stroke="#C1552C"
+                stroke={isRead ? '#4CAF50' : '#C1552C'}
                 strokeWidth="1.6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
               <path
                 d="M7 5L11 9L17 1"
-                stroke="#C1552C"
+                stroke={isRead ? '#4CAF50' : '#C1552C'}
                 strokeWidth="1.6"
                 strokeLinecap="round"
                 strokeLinejoin="round"

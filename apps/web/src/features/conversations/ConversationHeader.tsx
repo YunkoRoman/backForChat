@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Conversation } from './useConversations';
 import { Avatar } from './Avatar';
 import { AddMemberModal } from './AddMemberModal';
+import { usePresence } from '../chat/usePresence';
 
 function getInitials(name: string): string {
   return name
@@ -24,6 +25,7 @@ export function ConversationHeader({
   currentUserId,
 }: ConversationHeaderProps) {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const { isUserOnline } = usePresence();
 
   if (!conversation) {
     return (
@@ -51,6 +53,7 @@ export function ConversationHeader({
     const otherUserId = conversation.memberIds.find((id) => id !== currentUserId);
     displayName = otherUserId ? userMap[otherUserId] || 'Unknown' : 'Unknown';
     avatarId = otherUserId || '';
+    isOnline = otherUserId ? isUserOnline(otherUserId) : false;
   } else {
     displayName = conversation.name || 'Group';
     avatarId = conversation.conversationId;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '../../api/SocketContext';
 
 export interface ComposerProps {
@@ -10,12 +10,15 @@ export interface ComposerProps {
  * On submit: emits 'message:send' via socket, clears input.
  * Disabled when input is empty/whitespace-only.
  * Shows error state on 'message:send:error' event.
+ * Emits typing:start/typing:stop events during typing.
  */
 export function Composer({ conversationId }: ComposerProps) {
   const { emit, on, off } = useSocket();
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isTypingRef = useRef(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Listen for error events from the socket
   useEffect(() => {
@@ -32,6 +35,52 @@ export function Composer({ conversationId }: ComposerProps) {
     };
   }, [on, off]);
 
+  // Clean up typing timeout on unmount or conversation change
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [conversationId]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newText = e.target.value;
+    setText(newText);
+
+    if (!conversationId) return;
+
+    // If text becomes non-empty and we weren't typing, emit typing:start
+    if (newText.trim() && !isTypingRef.current) {
+      isTypingRef.current = true;
+      emit('typing:start', { conversationId });
+    }
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set timeout to emit typing:stop after 2 seconds of no activity
+    typingTimeoutRef.current = setTimeout(() => {
+      if (isTypingRef.current && conversationId) {
+        isTypingRef.current = false;
+        emit('typing:stop', { conversationId });
+      }
+    }, 2000);
+  };
+
+  const handleBlur = () => {
+    // Emit typing:stop on blur
+    if (isTypingRef.current && conversationId) {
+      isTypingRef.current = false;
+      emit('typing:stop', { conversationId });
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -43,6 +92,15 @@ export function Composer({ conversationId }: ComposerProps) {
     if (!conversationId) {
       setError('No conversation selected');
       return;
+    }
+
+    // Clear typing state on submit
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      emit('typing:stop', { conversationId });
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
     }
 
     // Clear any previous errors
@@ -125,7 +183,8 @@ export function Composer({ conversationId }: ComposerProps) {
           <input
             type="text"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={handleChange}
+            onBlur={handleBlur}
             placeholder="Написати повідомлення..."
             aria-label="Повідомлення"
             style={{

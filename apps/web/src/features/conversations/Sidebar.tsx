@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useConversations } from './useConversations';
 import type { Conversation } from './useConversations';
 import { Avatar } from './Avatar';
+import { usePresence } from '../chat/usePresence';
 
 /**
  * Extract the initials from a name (first letter of each word, max 3 chars)
@@ -34,6 +35,7 @@ export function Sidebar({
 }: SidebarProps) {
   const { user } = useAuth();
   const { data: conversations = [] } = useConversations();
+  const { isUserOnline } = usePresence();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter conversations by search query
@@ -129,6 +131,7 @@ export function Sidebar({
               onSelect={() => onSelectConversation(conv.conversationId)}
               userMap={userMap}
               currentUserId={user.id}
+              isUserOnline={isUserOnline}
             />
           ))
         )}
@@ -143,6 +146,7 @@ interface ConversationItemProps {
   onSelect: () => void;
   userMap: Record<string, string>;
   currentUserId: string;
+  isUserOnline: (userId: string) => boolean;
 }
 
 function ConversationItem({
@@ -151,14 +155,17 @@ function ConversationItem({
   onSelect,
   userMap,
   currentUserId,
+  isUserOnline,
 }: ConversationItemProps) {
   let displayName = '';
   let avatarId = '';
+  let isOnline = false;
 
   if (conversation.type === '1:1') {
     const otherUserId = conversation.memberIds.find((id) => id !== currentUserId);
     displayName = otherUserId ? userMap[otherUserId] || 'Unknown' : 'Unknown';
     avatarId = otherUserId || '';
+    isOnline = otherUserId ? isUserOnline(otherUserId) : false;
   } else {
     displayName = conversation.name || 'Group';
     avatarId = conversation.conversationId;
@@ -197,7 +204,7 @@ function ConversationItem({
       onMouseEnter={(e) => !isActive && (e.currentTarget.style.background = '#f6f1ea')}
       onMouseLeave={(e) => !isActive && (e.currentTarget.style.background = 'transparent')}
     >
-      <Avatar initials={initials} id={avatarId} size={44} />
+      <Avatar initials={initials} id={avatarId} size={44} presence={isOnline && conversation.type === '1:1'} />
       <div className="flex-grow min-w-0 flex flex-col justify-center gap-0.5">
         <div className="flex justify-between items-baseline gap-2" style={{ gap: '8px' }}>
           <span className="text-sm font-bold text-text truncate" style={{ fontSize: '14px' }}>

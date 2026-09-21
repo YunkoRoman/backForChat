@@ -34,10 +34,10 @@
 - [x] 5.1 Build the message history view: fetch the latest page via `GET /api/v1/conversations/:id/messages`, render newest at the bottom, own vs. others' bubbles styled per the mockup; verify against a conversation with real seeded messages
 - [x] 5.2 Add scroll-to-top pagination (fetch and prepend the next older page via the cursor, preserving scroll position); verify by seeding a conversation with more messages than one page and scrolling up
 - [x] 5.3 Build the composer: emits `message:send` over the socket on submit, clears on send, disabled/no-op on empty input, shows an error state on a `message:send:error` event; verify the send-then-appear round trip against the real backend, and verify the empty-message no-op
-- [ ] 5.4 Handle incoming `message:new`: append to the open conversation's message list if it matches, otherwise update that conversation's sidebar unread state and reorder it to the top; verify both paths with two browser sessions (or two browser profiles) logged in as different users
-- [ ] 5.5 Build the typing indicator: emit `typing:start`/`typing:stop` from composer input activity, render incoming `typing:update` in the open conversation; verify it appears and clears (both on explicit stop and on the server's own timeout) with two sessions
-- [ ] 5.6 Build read receipts: send a read update when the active conversation's latest loaded message becomes visible, render incoming `message:read:update` as a read marker on the person's own sent messages; verify with two sessions that marking read on one side updates the sender's read marker on the other
-- [ ] 5.7 Build presence display: render `presence:update` events as the online dot in the sidebar and the conversation header; verify by connecting/disconnecting a second session and observing the first session's indicator update live
+- [x] 5.4 Handle incoming `message:new`: append to the open conversation's message list if it matches, otherwise update that conversation's sidebar unread state and reorder it to the top; verify both paths with two browser sessions (or two browser profiles) logged in as different users
+- [x] 5.5 Build the typing indicator: emit `typing:start`/`typing:stop` from composer input activity, render incoming `typing:update` in the open conversation; verify it appears and clears (both on explicit stop and on the server's own timeout) with two sessions
+- [x] 5.6 Build read receipts: send a read update when the active conversation's latest loaded message becomes visible, render incoming `message:read:update` as a read marker on the person's own sent messages; verify with two sessions that marking read on one side updates the sender's read marker on the other
+- [x] 5.7 Build presence display: render `presence:update` events as the online dot in the sidebar and the conversation header; verify by connecting/disconnecting a second session and observing the first session's indicator update live
 
 ## 6. End-to-end manual verification
 
