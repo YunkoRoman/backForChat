@@ -1,4 +1,5 @@
-import { Controller, Post, Body, BadRequestException, InternalServerErrorException, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, BadRequestException, InternalServerErrorException, HttpCode, Res, Req } from '@nestjs/common';
+import type { Response, Request } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from './decorators/public.decorator.js';
 import {
@@ -8,6 +9,7 @@ import {
   LogoutUser,
 } from '../../application/index.js';
 import { MongooseUserRepository } from '../../infrastructure/persistence/mongoose-user.repository.js';
+import { ConfigService } from '../../../config/config.service.js';
 import {
   DuplicateEmailError,
   WeakPasswordError,
@@ -18,25 +20,42 @@ import {
 import {
   RegisterDto,
   LoginDto,
-  RefreshDto,
-  AuthResponseDto,
 } from './dtos/index.js';
 
 @Controller('auth')
 export class AuthController {
+  private readonly refreshTokenMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+
   constructor(
     private registerUserUseCase: RegisterUser,
     private loginUserUseCase: LoginUser,
     private refreshSessionUseCase: RefreshSession,
     private logoutUserUseCase: LogoutUser,
     private userRepository: MongooseUserRepository,
+    private configService: ConfigService,
   ) {}
+
+  private setRefreshTokenCookie(res: Response, refreshToken: string): void {
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: this.configService.isProduction,
+      path: '/api/v1/auth',
+      maxAge: this.refreshTokenMaxAge,
+    });
+  }
+
+  private clearRefreshTokenCookie(res: Response): void {
+    res.clearCookie('refreshToken', { path: '/api/v1/auth' });
+  }
 
   @Post('register')
   @Public()
-  async register(@Body() dto: RegisterDto): Promise<{
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{
     accessToken: string;
-    refreshToken: string;
     user: {
       id: string;
       email: string;
@@ -72,9 +91,10 @@ export class AuthController {
     }
 
     const tokens = tokenResult.value;
+    this.setRefreshTokenCookie(res, tokens.refreshToken);
+
     return {
       accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
       user: {
         id: registerResponse.userId,
         email: registerResponse.email,
@@ -86,7 +106,17 @@ export class AuthController {
   @Post('login')
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60 * 1000 } })
-  async login(@Body() dto: LoginDto): Promise<AuthResponseDto> {
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{
+    accessToken: string;
+    user: {
+      id: string;
+      email: string;
+      displayName: string;
+    };
+  }> {
     const result = await this.loginUserUseCase.execute({
       email: dto.email,
       password: dto.password,
@@ -108,9 +138,10 @@ export class AuthController {
       throw new InternalServerErrorException('User not found after successful login');
     }
 
+    this.setRefreshTokenCookie(res, tokens.refreshToken);
+
     return {
       accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
       user: {
         id: user.id,
         email: user.email.value,
@@ -121,9 +152,18 @@ export class AuthController {
 
   @Post('refresh')
   @Public()
-  async refresh(@Body() dto: RefreshDto): Promise<AuthResponseDto> {
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ accessToken: string }> {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+      throw new BadRequestException('Invalid or expired refresh token');
+    }
+
     const result = await this.refreshSessionUseCase.execute({
-      refreshToken: dto.refreshToken,
+      refreshToken,
     });
 
     if (!result.isOk()) {
@@ -140,24 +180,37 @@ export class AuthController {
     }
 
     const tokens = result.value;
+    this.setRefreshTokenCookie(res, tokens.refreshToken);
+
     return {
       accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
     };
   }
 
   @Post('logout')
   @Public()
   @HttpCode(201)
-  async logout(@Body() dto: RefreshDto): Promise<{ message: string }> {
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ message: string }> {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+      // Still return success for idempotent logout
+      this.clearRefreshTokenCookie(res);
+      return { message: 'Logged out successfully' };
+    }
+
     const result = await this.logoutUserUseCase.execute({
-      refreshToken: dto.refreshToken,
+      refreshToken,
     });
 
     if (!result.isOk()) {
       throw new BadRequestException('Logout failed');
     }
 
+    this.clearRefreshTokenCookie(res);
     return { message: 'Logged out successfully' };
   }
 }

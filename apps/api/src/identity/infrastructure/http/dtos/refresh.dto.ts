@@ -1,7 +1,3 @@
-import { IsString, IsNotEmpty } from 'class-validator';
-
-export class RefreshDto {
-  @IsString({ message: 'Refresh token must be a string' })
-  @IsNotEmpty({ message: 'Refresh token is required' })
-  refreshToken: string;
-}
+// This DTO is no longer used as refresh and logout now read from cookies
+// Kept for backward compatibility if needed elsewhere
+export class RefreshDto {}

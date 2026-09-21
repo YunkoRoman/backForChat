@@ -1,8 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
+import cookieParser from 'cookie-parser';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { AppModule } from '../src/app.module.js';
+import { ConfigService } from '../src/config/config.service.js';
+
+// Helper function to extract refresh token from Set-Cookie header
+function extractRefreshTokenFromCookie(setCookieHeader: string | string[] | undefined): string | null {
+  if (!setCookieHeader) return null;
+
+  const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+  const refreshTokenCookie = cookies.find((cookie) => cookie.startsWith('refreshToken='));
+
+  if (!refreshTokenCookie) return null;
+
+  // Extract the token value (between 'refreshToken=' and the first ';')
+  const match = refreshTokenCookie.match(/refreshToken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 describe('Identity - Authentication (e2e)', () => {
   let app: INestApplication;
@@ -41,6 +57,19 @@ describe('Identity - Authentication (e2e)', () => {
 
       app = moduleFixture.createNestApplication();
       app.setGlobalPrefix('api/v1');
+
+      // Get config service for CORS
+      const configService = app.get(ConfigService);
+
+      // Enable CORS with credentials support for cookies
+      app.enableCors({
+        origin: configService.frontendOrigin,
+        credentials: true,
+      });
+
+      // Register cookie parser middleware
+      app.use(cookieParser());
+
       app.useGlobalPipes(
         new ValidationPipe({
           whitelist: true,
@@ -72,11 +101,15 @@ describe('Identity - Authentication (e2e)', () => {
         .expect(201);
 
       expect(res.body).toHaveProperty('accessToken');
-      expect(res.body).toHaveProperty('refreshToken');
+      expect(res.body).not.toHaveProperty('refreshToken'); // Now in cookie, not in body
       expect(res.body).toHaveProperty('user');
       expect(res.body.user.email).toBe(testUser1.email.toLowerCase());
       expect(res.body.user.displayName).toBe(testUser1.displayName);
       expect(res.body.user).not.toHaveProperty('password');
+
+      // Verify refresh token is in cookie
+      const refreshToken = extractRefreshTokenFromCookie(res.headers['set-cookie']);
+      expect(refreshToken).toBeTruthy();
     });
 
     it('should reject registration with duplicate email', async () => {
@@ -182,8 +215,12 @@ describe('Identity - Authentication (e2e)', () => {
         .expect(201);
 
       expect(res.body).toHaveProperty('accessToken');
-      expect(res.body).toHaveProperty('refreshToken');
+      expect(res.body).not.toHaveProperty('refreshToken'); // Now in cookie, not in body
       expect(res.body.user.email).toBe(testUser2.email.toLowerCase());
+
+      // Verify refresh token is in cookie
+      const refreshToken = extractRefreshTokenFromCookie(res.headers['set-cookie']);
+      expect(refreshToken).toBeTruthy();
     });
 
     it('should return generic error for wrong password', async () => {
@@ -280,12 +317,17 @@ describe('Identity - Authentication (e2e)', () => {
         .expect(201);
 
       expect(res.body).toHaveProperty('accessToken');
-      expect(res.body).toHaveProperty('refreshToken');
+      expect(res.body).not.toHaveProperty('refreshToken'); // Now in cookie, not in body
+
+      // Verify refresh token is in cookie
+      const refreshToken = extractRefreshTokenFromCookie(res.headers['set-cookie']);
+      expect(refreshToken).toBeTruthy();
     });
   });
 
   describe('POST /api/v1/auth/refresh', () => {
     let refreshToken: string;
+    let refreshCookie: string;
 
     beforeAll(async () => {
       // Register and login to get tokens
@@ -298,24 +340,31 @@ describe('Identity - Authentication (e2e)', () => {
         })
         .expect(201);
 
-      refreshToken = res.body.refreshToken;
+      refreshToken = extractRefreshTokenFromCookie(res.headers['set-cookie']) || '';
+      expect(refreshToken).toBeTruthy();
+
+      // Store the cookie header for use in subsequent requests
+      refreshCookie = res.headers['set-cookie']?.[0] || '';
     });
 
     it('should refresh the token with valid refresh token', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
-        .send({ refreshToken })
+        .set('Cookie', refreshCookie)
         .expect(201);
 
       expect(res.body).toHaveProperty('accessToken');
-      expect(res.body).toHaveProperty('refreshToken');
-      expect(res.body.refreshToken).not.toEqual(refreshToken); // Should be a new token
+      expect(res.body).not.toHaveProperty('refreshToken'); // Now in cookie, not in body
+
+      // Verify new refresh token is in cookie
+      const newRefreshToken = extractRefreshTokenFromCookie(res.headers['set-cookie']);
+      expect(newRefreshToken).toBeTruthy();
+      expect(newRefreshToken).not.toEqual(refreshToken); // Should be a new token
     });
 
     it('should reject refresh with invalid refresh token', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
-        .send({ refreshToken: 'invalid.token.here' })
         .expect(400);
 
       expect(res.body.message).toContain('Invalid or expired refresh token');
@@ -332,27 +381,32 @@ describe('Identity - Authentication (e2e)', () => {
         })
         .expect(201);
 
-      let currentRefreshToken = loginRes.body.refreshToken;
+      let currentRefreshCookie = loginRes.headers['set-cookie']?.[0] || '';
+      let currentRefreshToken = extractRefreshTokenFromCookie(loginRes.headers['set-cookie']);
 
       // First rotation - should succeed
       const rotation1Res = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
-        .send({ refreshToken: currentRefreshToken })
+        .set('Cookie', currentRefreshCookie)
         .expect(201);
 
-      const newRefreshToken1 = rotation1Res.body.refreshToken;
+      const newRefreshToken1 = extractRefreshTokenFromCookie(rotation1Res.headers['set-cookie']);
+      const rotation1Cookie = rotation1Res.headers['set-cookie']?.[0] || '';
+
       expect(newRefreshToken1).not.toEqual(currentRefreshToken);
 
       // Second rotation with new token - should succeed
       const rotation2Res = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
-        .send({ refreshToken: newRefreshToken1 })
+        .set('Cookie', rotation1Cookie)
         .expect(201);
+
+      const rotation2Cookie = rotation2Res.headers['set-cookie']?.[0] || '';
 
       // Try to reuse the first token - should be detected as reuse
       const reuseRes = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
-        .send({ refreshToken: currentRefreshToken })
+        .set('Cookie', currentRefreshCookie)
         .expect(400);
 
       expect(reuseRes.body.message).toContain('reuse detected');
@@ -360,7 +414,7 @@ describe('Identity - Authentication (e2e)', () => {
       // All sessions should now be revoked, even the latest token should fail
       const shouldFailRes = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
-        .send({ refreshToken: rotation2Res.body.refreshToken })
+        .set('Cookie', rotation2Cookie)
         .expect(400);
 
       expect(shouldFailRes.body.message).toBeDefined();
@@ -383,12 +437,12 @@ describe('Identity - Authentication (e2e)', () => {
         expect(registerRes.status).toBe(201);
       }
 
-      const refreshToken = registerRes.body.refreshToken;
+      const refreshCookie = registerRes.headers['set-cookie']?.[0] || '';
 
       // Logout
       const logoutRes = await request(app.getHttpServer())
         .post('/api/v1/auth/logout')
-        .send({ refreshToken });
+        .set('Cookie', refreshCookie);
 
       if (logoutRes.status !== 201) {
         console.error('Logout failed:', logoutRes.status, logoutRes.body);
@@ -398,7 +452,7 @@ describe('Identity - Authentication (e2e)', () => {
       // Try to use the token after logout - should fail
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
-        .send({ refreshToken })
+        .set('Cookie', refreshCookie)
         .expect(400);
 
       expect(res.body.message).toContain('Invalid or expired refresh token');
@@ -415,18 +469,18 @@ describe('Identity - Authentication (e2e)', () => {
         })
         .expect(201);
 
-      const refreshToken = registerRes.body.refreshToken;
+      const refreshCookie = registerRes.headers['set-cookie']?.[0] || '';
 
       // First logout
       await request(app.getHttpServer())
         .post('/api/v1/auth/logout')
-        .send({ refreshToken })
+        .set('Cookie', refreshCookie)
         .expect(201);
 
       // Second logout with same token should also succeed (idempotent)
       await request(app.getHttpServer())
         .post('/api/v1/auth/logout')
-        .send({ refreshToken })
+        .set('Cookie', refreshCookie)
         .expect(201);
     });
   });
