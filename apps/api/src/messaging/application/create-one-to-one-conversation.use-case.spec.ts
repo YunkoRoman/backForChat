@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CreateOneToOneConversation } from './create-one-to-one-conversation.use-case.js';
 import { ConversationRepository } from './ports/conversation-repository.interface.js';
+import { EventPublisher } from '../../shared-kernel/index.js';
 import { Conversation } from '../domain/conversation.aggregate.js';
 
 /**
@@ -44,13 +45,30 @@ class FakeConversationRepository implements ConversationRepository {
   }
 }
 
+/**
+ * In-memory fake implementation of EventPublisher for testing.
+ */
+class FakeEventPublisher implements EventPublisher {
+  private publishedEvents: Array<{ routingKey: string; payload: unknown }> = [];
+
+  async publish(routingKey: string, payload: unknown): Promise<void> {
+    this.publishedEvents.push({ routingKey, payload });
+  }
+
+  getPublishedEvents(): Array<{ routingKey: string; payload: unknown }> {
+    return this.publishedEvents;
+  }
+}
+
 describe('CreateOneToOneConversation Use Case', () => {
   let useCase: CreateOneToOneConversation;
   let conversationRepository: FakeConversationRepository;
+  let eventPublisher: FakeEventPublisher;
 
   beforeEach(() => {
     conversationRepository = new FakeConversationRepository();
-    useCase = new CreateOneToOneConversation(conversationRepository);
+    eventPublisher = new FakeEventPublisher();
+    useCase = new CreateOneToOneConversation(conversationRepository, eventPublisher);
   });
 
   describe('new 1:1 conversation created', () => {

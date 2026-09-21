@@ -30,6 +30,8 @@ import { MessagingGateway } from './infrastructure/gateway/messaging.gateway.js'
 // Other modules
 import { IdentityModule } from '../identity/identity.module.js';
 import { PresenceModule } from '../presence/presence.module.js';
+import { SharedKernelModule } from '../shared-kernel/shared-kernel.module.js';
+import { RabbitMqEventPublisher } from '../shared-kernel/infrastructure/rabbitmq-event-publisher.js';
 
 @Module({
   imports: [
@@ -40,6 +42,7 @@ import { PresenceModule } from '../presence/presence.module.js';
     ]),
     IdentityModule,
     PresenceModule,
+    SharedKernelModule,
   ],
   controllers: [ConversationsController, MessagesController],
   providers: [
@@ -51,21 +54,21 @@ import { PresenceModule } from '../presence/presence.module.js';
     // Use Cases
     {
       provide: CreateOneToOneConversation,
-      useFactory: (conversationRepo: MongooseConversationRepository) =>
-        new CreateOneToOneConversation(conversationRepo),
-      inject: [MongooseConversationRepository],
+      useFactory: (conversationRepo: MongooseConversationRepository, eventPublisher: RabbitMqEventPublisher) =>
+        new CreateOneToOneConversation(conversationRepo, eventPublisher),
+      inject: [MongooseConversationRepository, RabbitMqEventPublisher],
     },
     {
       provide: CreateGroupConversation,
-      useFactory: (conversationRepo: MongooseConversationRepository) =>
-        new CreateGroupConversation(conversationRepo),
-      inject: [MongooseConversationRepository],
+      useFactory: (conversationRepo: MongooseConversationRepository, eventPublisher: RabbitMqEventPublisher) =>
+        new CreateGroupConversation(conversationRepo, eventPublisher),
+      inject: [MongooseConversationRepository, RabbitMqEventPublisher],
     },
     {
       provide: AddMemberToConversation,
-      useFactory: (conversationRepo: MongooseConversationRepository) =>
-        new AddMemberToConversation(conversationRepo),
-      inject: [MongooseConversationRepository],
+      useFactory: (conversationRepo: MongooseConversationRepository, eventPublisher: RabbitMqEventPublisher) =>
+        new AddMemberToConversation(conversationRepo, eventPublisher),
+      inject: [MongooseConversationRepository, RabbitMqEventPublisher],
     },
     {
       provide: ListConversations,
@@ -75,9 +78,9 @@ import { PresenceModule } from '../presence/presence.module.js';
     },
     {
       provide: SendMessage,
-      useFactory: (conversationRepo: MongooseConversationRepository, messageRepo: MongooseMessageRepository) =>
-        new SendMessage(conversationRepo, messageRepo),
-      inject: [MongooseConversationRepository, MongooseMessageRepository],
+      useFactory: (conversationRepo: MongooseConversationRepository, messageRepo: MongooseMessageRepository, eventPublisher: RabbitMqEventPublisher) =>
+        new SendMessage(conversationRepo, messageRepo, eventPublisher),
+      inject: [MongooseConversationRepository, MongooseMessageRepository, RabbitMqEventPublisher],
     },
     {
       provide: GetMessageHistory,

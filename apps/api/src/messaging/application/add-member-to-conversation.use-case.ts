@@ -1,4 +1,4 @@
-import { Result, ok, err } from '../../shared-kernel/index.js';
+import { Result, ok, err, EventPublisher } from '../../shared-kernel/index.js';
 import {
   RequesterNotAMemberError,
   CannotAddMemberToOneToOneConversationError,
@@ -17,7 +17,10 @@ export interface AddMemberToConversationResponse {
 }
 
 export class AddMemberToConversation {
-  constructor(private conversationRepository: ConversationRepository) {}
+  constructor(
+    private conversationRepository: ConversationRepository,
+    private eventPublisher: EventPublisher,
+  ) {}
 
   async execute(
     request: AddMemberToConversationRequest,
@@ -50,6 +53,13 @@ export class AddMemberToConversation {
 
     // Save the conversation
     await this.conversationRepository.save(conversation);
+
+    // Publish the member.added event (after persistence succeeds)
+    await this.eventPublisher.publish('member.added', {
+      conversationId: conversation.id,
+      memberId: newMemberId,
+      memberIds: conversation.memberIds,
+    });
 
     return ok({
       conversationId: conversation.id,

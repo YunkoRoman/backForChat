@@ -11,7 +11,9 @@ import { ConfigService } from './config/config.service.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { MessagingModule } from './messaging/messaging.module.js';
 import { PresenceModule } from './presence/presence.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { JwtAuthGuard } from './identity/infrastructure/http/guards/jwt-auth.guard.js';
+import { SharedKernelModule } from './shared-kernel/shared-kernel.module.js';
 
 @Module({
   imports: [
@@ -32,12 +34,16 @@ import { JwtAuthGuard } from './identity/infrastructure/http/guards/jwt-auth.gua
         limit: 100, // 100 requests per minute by default
       },
     ]),
+    // Shared Kernel (event publisher, etc)
+    SharedKernelModule,
     // Identity module (auth)
     IdentityModule,
     // Messaging module
     MessagingModule,
     // Presence module
     PresenceModule,
+    // Notifications module (event consumers)
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

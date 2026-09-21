@@ -1,4 +1,4 @@
-import { Result, ok, err } from '../../shared-kernel/index.js';
+import { Result, ok, err, EventPublisher } from '../../shared-kernel/index.js';
 import {
   Message,
   RequesterNotAMemberError,
@@ -27,6 +27,7 @@ export class SendMessage {
   constructor(
     private conversationRepository: ConversationRepository,
     private messageRepository: MessageRepository,
+    private eventPublisher: EventPublisher,
   ) {}
 
   async execute(
@@ -54,6 +55,15 @@ export class SendMessage {
 
       // Persist the message
       await this.messageRepository.save(message);
+
+      // Publish the message.sent event (after persistence succeeds)
+      await this.eventPublisher.publish('message.sent', {
+        messageId: message.id,
+        conversationId: message.conversationId,
+        senderId: message.senderId,
+        text: message.text,
+        createdAt: message.createdAt.toISOString(),
+      });
 
       return ok({
         messageId: message.id,

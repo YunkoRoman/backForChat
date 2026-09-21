@@ -12,6 +12,7 @@ import { InvalidTokenError } from '../../../identity/domain/errors.js';
 import { SendMessage, SendMessageRequest, MarkConversationRead, MarkConversationReadRequest } from '../../application/index.js';
 import { MongooseConversationRepository } from '../persistence/mongoose-conversation.repository.js';
 import { PresenceTracker } from '../../../presence/infrastructure/presence-tracker.js';
+import { RabbitMqEventPublisher } from '../../../shared-kernel/infrastructure/rabbitmq-event-publisher.js';
 
 /**
  * Socket data shape for typed socket instances
@@ -68,6 +69,7 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
     private markConversationRead: MarkConversationRead,
     private conversationRepository: MongooseConversationRepository,
     private presenceTracker: PresenceTracker,
+    private eventPublisher: RabbitMqEventPublisher,
   ) {}
 
   /**
@@ -107,9 +109,14 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
       const isFirstConnection = this.presenceTracker.addConnection(userId, socket.id);
 
       // If this is the first connection (user just came online),
-      // notify members of shared conversations
+      // notify members of shared conversations and publish the event
       if (isFirstConnection) {
         await this.broadcastPresenceUpdate(userId, 'online');
+        // Publish user.online event (after the presence transition is confirmed)
+        await this.eventPublisher.publish('user.online', {
+          userId,
+          timestamp: new Date().toISOString(),
+        });
       }
     } catch (error) {
       if (error instanceof InvalidTokenError) {
@@ -147,11 +154,21 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.cleanupUserTypingTimeouts(userId);
 
     // If this was the user's last connection (now offline),
-    // notify members of shared conversations
+    // notify members of shared conversations and publish the event
     if (isLastConnection) {
       this.broadcastPresenceUpdate(userId, 'offline').catch((error) => {
         this.logger.error(
           `Error broadcasting offline status for user ${userId}:`,
+          error,
+        );
+      });
+      // Publish user.offline event (after the presence transition is confirmed)
+      this.eventPublisher.publish('user.offline', {
+        userId,
+        timestamp: new Date().toISOString(),
+      }).catch((error) => {
+        this.logger.error(
+          `Error publishing user.offline event for user ${userId}:`,
           error,
         );
       });

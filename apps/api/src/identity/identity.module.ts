@@ -20,6 +20,7 @@ import { RefreshTokenRepository } from './infrastructure/persistence/refresh-tok
 // Infrastructure - Adapters
 import { Argon2PasswordHasher } from './infrastructure/adapters/argon2-password.hasher.js';
 import { JwtTokenService } from './infrastructure/adapters/jwt-token.service.js';
+import { RabbitMqEventPublisher } from '../shared-kernel/infrastructure/rabbitmq-event-publisher.js';
 
 // Infrastructure - HTTP
 import { AuthController } from './infrastructure/http/auth.controller.js';
@@ -28,6 +29,7 @@ import { JwtAuthGuard } from './infrastructure/http/guards/jwt-auth.guard.js';
 
 // Config
 import { ConfigModule } from '../config/config.module.js';
+import { SharedKernelModule } from '../shared-kernel/shared-kernel.module.js';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { ConfigModule } from '../config/config.module.js';
     JwtModule.register({}),
     // Import ConfigModule for accessing configuration
     ConfigModule,
+    // Import SharedKernelModule for EventPublisher
+    SharedKernelModule,
   ],
   controllers: [AuthController, UsersController],
   providers: [
@@ -54,9 +58,9 @@ import { ConfigModule } from '../config/config.module.js';
     // Use Cases
     {
       provide: RegisterUser,
-      useFactory: (userRepo: MongooseUserRepository, hasher: Argon2PasswordHasher) =>
-        new RegisterUser(userRepo, hasher),
-      inject: [MongooseUserRepository, Argon2PasswordHasher],
+      useFactory: (userRepo: MongooseUserRepository, hasher: Argon2PasswordHasher, eventPublisher: RabbitMqEventPublisher) =>
+        new RegisterUser(userRepo, hasher, eventPublisher),
+      inject: [MongooseUserRepository, Argon2PasswordHasher, RabbitMqEventPublisher],
     },
     {
       provide: LoginUser,

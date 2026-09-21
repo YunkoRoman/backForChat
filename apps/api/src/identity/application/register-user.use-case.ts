@@ -1,4 +1,4 @@
-import { Result, ok, err } from '../../shared-kernel/index.js';
+import { Result, ok, err, EventPublisher } from '../../shared-kernel/index.js';
 import {
   DuplicateEmailError,
   WeakPasswordError,
@@ -29,6 +29,7 @@ export class RegisterUser {
   constructor(
     private userRepository: UserRepository,
     private passwordHasher: PasswordHasher,
+    private eventPublisher: EventPublisher,
   ) {}
 
   async execute(
@@ -63,6 +64,14 @@ export class RegisterUser {
 
     // Persist the user
     await this.userRepository.save(user);
+
+    // Publish the user.registered event (after persistence succeeds)
+    await this.eventPublisher.publish('user.registered', {
+      userId: user.id,
+      email: user.email.value,
+      displayName: user.displayName,
+      createdAt: new Date().toISOString(),
+    });
 
     return ok({
       userId: user.id,

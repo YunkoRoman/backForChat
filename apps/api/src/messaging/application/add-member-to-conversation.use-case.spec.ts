@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AddMemberToConversation } from './add-member-to-conversation.use-case.js';
 import { ConversationRepository } from './ports/conversation-repository.interface.js';
+import { EventPublisher } from '../../shared-kernel/index.js';
 import { Conversation } from '../domain/conversation.aggregate.js';
 import {
   RequesterNotAMemberError,
@@ -40,13 +41,30 @@ class FakeConversationRepository implements ConversationRepository {
   }
 }
 
+/**
+ * In-memory fake implementation of EventPublisher for testing.
+ */
+class FakeEventPublisher implements EventPublisher {
+  private publishedEvents: Array<{ routingKey: string; payload: unknown }> = [];
+
+  async publish(routingKey: string, payload: unknown): Promise<void> {
+    this.publishedEvents.push({ routingKey, payload });
+  }
+
+  getPublishedEvents(): Array<{ routingKey: string; payload: unknown }> {
+    return this.publishedEvents;
+  }
+}
+
 describe('AddMemberToConversation Use Case', () => {
   let useCase: AddMemberToConversation;
   let conversationRepository: FakeConversationRepository;
+  let eventPublisher: FakeEventPublisher;
 
   beforeEach(() => {
     conversationRepository = new FakeConversationRepository();
-    useCase = new AddMemberToConversation(conversationRepository);
+    eventPublisher = new FakeEventPublisher();
+    useCase = new AddMemberToConversation(conversationRepository, eventPublisher);
   });
 
   describe('member added to group', () => {

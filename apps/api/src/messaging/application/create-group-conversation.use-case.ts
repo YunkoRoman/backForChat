@@ -1,4 +1,4 @@
-import { Result, ok, err } from '../../shared-kernel/index.js';
+import { Result, ok, err, EventPublisher } from '../../shared-kernel/index.js';
 import {
   Conversation,
   GroupMustHaveAtLeastTwoMembersError,
@@ -21,7 +21,10 @@ export interface CreateGroupConversationResponse {
 }
 
 export class CreateGroupConversation {
-  constructor(private conversationRepository: ConversationRepository) {}
+  constructor(
+    private conversationRepository: ConversationRepository,
+    private eventPublisher: EventPublisher,
+  ) {}
 
   async execute(
     request: CreateGroupConversationRequest,
@@ -39,6 +42,15 @@ export class CreateGroupConversation {
 
       // Persist the conversation
       await this.conversationRepository.save(conversation);
+
+      // Publish the conversation.created event (after persistence succeeds)
+      await this.eventPublisher.publish('conversation.created', {
+        conversationId: conversation.id,
+        type: 'group',
+        name: conversation.name,
+        memberIds: conversation.memberIds,
+        createdAt: conversation.createdAt.toISOString(),
+      });
 
       return ok({
         conversationId: conversation.id,

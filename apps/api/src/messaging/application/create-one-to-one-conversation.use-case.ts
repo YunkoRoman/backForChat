@@ -1,4 +1,4 @@
-import { Result, ok } from '../../shared-kernel/index.js';
+import { Result, ok, EventPublisher } from '../../shared-kernel/index.js';
 import { Conversation } from '../domain/conversation.aggregate.js';
 import { ConversationRepository } from './ports/conversation-repository.interface.js';
 import { randomUUID } from 'node:crypto';
@@ -16,7 +16,10 @@ export interface CreateOneToOneConversationResponse {
 }
 
 export class CreateOneToOneConversation {
-  constructor(private conversationRepository: ConversationRepository) {}
+  constructor(
+    private conversationRepository: ConversationRepository,
+    private eventPublisher: EventPublisher,
+  ) {}
 
   async execute(
     request: CreateOneToOneConversationRequest,
@@ -49,6 +52,14 @@ export class CreateOneToOneConversation {
 
     // Persist the conversation
     await this.conversationRepository.save(conversation);
+
+    // Publish the conversation.created event (after persistence succeeds)
+    await this.eventPublisher.publish('conversation.created', {
+      conversationId: conversation.id,
+      type: '1:1',
+      memberIds: conversation.memberIds,
+      createdAt: conversation.createdAt.toISOString(),
+    });
 
     return ok({
       conversationId: conversation.id,

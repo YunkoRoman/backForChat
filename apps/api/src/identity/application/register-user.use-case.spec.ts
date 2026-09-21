@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { RegisterUser } from './register-user.use-case.js';
 import { UserRepository } from './ports/user-repository.interface.js';
 import { PasswordHasher } from './ports/password-hasher.interface.js';
+import { EventPublisher } from '../../shared-kernel/index.js';
 import { User } from '../domain/user.aggregate.js';
 import { DuplicateEmailError, WeakPasswordError } from '../domain/errors.js';
 
@@ -53,15 +54,36 @@ class FakePasswordHasher implements PasswordHasher {
   }
 }
 
+/**
+ * In-memory fake implementation of EventPublisher for testing.
+ */
+class FakeEventPublisher implements EventPublisher {
+  private publishedEvents: Array<{ routingKey: string; payload: unknown }> = [];
+
+  async publish(routingKey: string, payload: unknown): Promise<void> {
+    this.publishedEvents.push({ routingKey, payload });
+  }
+
+  getPublishedEvents(): Array<{ routingKey: string; payload: unknown }> {
+    return this.publishedEvents;
+  }
+
+  clearPublishedEvents(): void {
+    this.publishedEvents = [];
+  }
+}
+
 describe('RegisterUser Use Case', () => {
   let registerUser: RegisterUser;
   let userRepository: FakeUserRepository;
   let passwordHasher: FakePasswordHasher;
+  let eventPublisher: FakeEventPublisher;
 
   beforeEach(() => {
     userRepository = new FakeUserRepository();
     passwordHasher = new FakePasswordHasher();
-    registerUser = new RegisterUser(userRepository, passwordHasher);
+    eventPublisher = new FakeEventPublisher();
+    registerUser = new RegisterUser(userRepository, passwordHasher, eventPublisher);
   });
 
   describe('successful registration', () => {
@@ -236,6 +258,59 @@ describe('RegisterUser Use Case', () => {
           displayName: 'User',
         }),
       ).rejects.toThrow();
+    });
+  });
+
+  describe('event publishing', () => {
+    it('should publish user.registered event after successful persistence', async () => {
+      const result = await registerUser.execute({
+        email: 'newuser@example.com',
+        password: 'ValidPassword123',
+        displayName: 'New User',
+      });
+
+      expect(result.isOk()).toBe(true);
+
+      // Verify the event was published
+      const publishedEvents = eventPublisher.getPublishedEvents();
+      expect(publishedEvents).toHaveLength(1);
+      expect(publishedEvents[0].routingKey).toBe('user.registered');
+      expect(publishedEvents[0].payload).toEqual(
+        expect.objectContaining({
+          email: 'newuser@example.com',
+          displayName: 'New User',
+          userId: expect.any(String),
+          createdAt: expect.any(String),
+        }),
+      );
+    });
+
+    it('should not publish event if persistence fails', async () => {
+      // Create a broken repository that throws on save
+      class BrokenRepository extends FakeUserRepository {
+        async save(): Promise<void> {
+          throw new Error('Persistence failed');
+        }
+      }
+
+      const brokenRepo = new BrokenRepository();
+      const brokenRegisterUser = new RegisterUser(
+        brokenRepo,
+        passwordHasher,
+        eventPublisher,
+      );
+
+      await expect(
+        brokenRegisterUser.execute({
+          email: 'test@example.com',
+          password: 'ValidPassword123',
+          displayName: 'Test User',
+        }),
+      ).rejects.toThrow('Persistence failed');
+
+      // Verify no event was published
+      const publishedEvents = eventPublisher.getPublishedEvents();
+      expect(publishedEvents).toHaveLength(0);
     });
   });
 });

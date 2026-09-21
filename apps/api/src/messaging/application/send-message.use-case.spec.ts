@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { SendMessage } from './send-message.use-case.js';
 import { ConversationRepository } from './ports/conversation-repository.interface.js';
 import { MessageRepository, MessageCursor } from './ports/message-repository.interface.js';
+import { EventPublisher } from '../../shared-kernel/index.js';
 import { Conversation } from '../domain/conversation.aggregate.js';
 import { Message } from '../domain/message.entity.js';
 import {
@@ -82,15 +83,32 @@ class FakeMessageRepository implements MessageRepository {
   }
 }
 
+/**
+ * In-memory fake implementation of EventPublisher for testing.
+ */
+class FakeEventPublisher implements EventPublisher {
+  private publishedEvents: Array<{ routingKey: string; payload: unknown }> = [];
+
+  async publish(routingKey: string, payload: unknown): Promise<void> {
+    this.publishedEvents.push({ routingKey, payload });
+  }
+
+  getPublishedEvents(): Array<{ routingKey: string; payload: unknown }> {
+    return this.publishedEvents;
+  }
+}
+
 describe('SendMessage Use Case', () => {
   let useCase: SendMessage;
   let conversationRepository: FakeConversationRepository;
   let messageRepository: FakeMessageRepository;
+  let eventPublisher: FakeEventPublisher;
 
   beforeEach(() => {
     conversationRepository = new FakeConversationRepository();
     messageRepository = new FakeMessageRepository();
-    useCase = new SendMessage(conversationRepository, messageRepository);
+    eventPublisher = new FakeEventPublisher();
+    useCase = new SendMessage(conversationRepository, messageRepository, eventPublisher);
   });
 
   describe('message sent and delivered', () => {

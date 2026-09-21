@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CreateGroupConversation } from './create-group-conversation.use-case.js';
 import { ConversationRepository } from './ports/conversation-repository.interface.js';
+import { EventPublisher } from '../../shared-kernel/index.js';
 import { Conversation } from '../domain/conversation.aggregate.js';
 import { GroupMustHaveAtLeastTwoMembersError } from '../domain/errors.js';
 
@@ -37,13 +38,30 @@ class FakeConversationRepository implements ConversationRepository {
   }
 }
 
+/**
+ * In-memory fake implementation of EventPublisher for testing.
+ */
+class FakeEventPublisher implements EventPublisher {
+  private publishedEvents: Array<{ routingKey: string; payload: unknown }> = [];
+
+  async publish(routingKey: string, payload: unknown): Promise<void> {
+    this.publishedEvents.push({ routingKey, payload });
+  }
+
+  getPublishedEvents(): Array<{ routingKey: string; payload: unknown }> {
+    return this.publishedEvents;
+  }
+}
+
 describe('CreateGroupConversation Use Case', () => {
   let useCase: CreateGroupConversation;
   let conversationRepository: FakeConversationRepository;
+  let eventPublisher: FakeEventPublisher;
 
   beforeEach(() => {
     conversationRepository = new FakeConversationRepository();
-    useCase = new CreateGroupConversation(conversationRepository);
+    eventPublisher = new FakeEventPublisher();
+    useCase = new CreateGroupConversation(conversationRepository, eventPublisher);
   });
 
   describe('group conversation created', () => {
