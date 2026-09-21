@@ -9,6 +9,7 @@ import {
   NewConversationModal,
   ConversationHeader,
 } from '../features/conversations';
+import { MessageList, Composer } from '../features/chat';
 
 export function ChatPage() {
   const { logout, user } = useAuth();
@@ -81,16 +82,25 @@ export function ChatPage() {
           currentUserId={user.id}
         />
 
-        {/* Message area - empty state for now (section 5) */}
-        <div className="flex-grow flex items-center justify-center bg-bg overflow-y-auto">
-          <div style={{ background: '#FFFFFF', padding: '32px', borderRadius: '8px', textAlign: 'center' }}>
-            <p style={{ color: '#7A736C', fontSize: '14px' }}>
-              {activeConversationId
-                ? 'Повідомлення будуть з\'являтися тут'
-                : 'Оберіть розмову, щоб розпочати'}
-            </p>
+        {/* Message area and composer */}
+        {!activeConversationId ? (
+          <div className="flex-grow flex items-center justify-center bg-bg">
+            <div style={{ background: '#FFFFFF', padding: '32px', borderRadius: '8px', textAlign: 'center' }}>
+              <p style={{ color: '#7A736C', fontSize: '14px' }}>
+                Оберіть розмову, щоб розпочати
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <MessageList
+              conversationId={activeConversationId}
+              currentUserId={user.id}
+              userMap={userMap}
+            />
+            <Composer conversationId={activeConversationId} />
+          </>
+        )}
       </div>
 
       {/* New conversation modal */}
