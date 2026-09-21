@@ -23,11 +23,11 @@
 
 ## 4. Conversations UI
 
-- [ ] 4.1 Build the chat shell layout (sidebar + main panel) matching the approved mockup's structure; verify it renders at the two viewport sizes it'll realistically be used at (i.e. a normal laptop width, and check it doesn't break narrower)
-- [ ] 4.2 Build the conversation list (sidebar): fetch via TanStack Query, show name/avatar/presence dot/last-message-preview/unread indicator, most-recently-active first, selecting one sets it active; verify against real seeded conversations from the backend
-- [ ] 4.3 Build the new-conversation picker (user directory, searchable) wired to `POST /api/v1/conversations` with `type: '1:1'`; verify both the new-conversation and reuse-existing-conversation scenarios from `specs/web/conversations` against the real backend (the backend already implements reuse - confirm the picker surfaces the same conversation both times)
-- [ ] 4.4 Build the new-group flow (name + multi-select from directory) wired to `POST /api/v1/conversations` with `type: 'group'`; verify the too-few-members validation error shows client-side before any request is sent
-- [ ] 4.5 Build the add-member action on a group conversation's header (hidden entirely for 1:1 conversations); verify both scenarios from `specs/web/conversations`
+- [x] 4.1 Build the chat shell layout (sidebar + main panel) matching the approved mockup's structure; verify it renders at the two viewport sizes it'll realistically be used at (i.e. a normal laptop width, and check it doesn't break narrower)
+- [x] 4.2 Build the conversation list (sidebar): fetch via TanStack Query, show name/avatar/presence dot/last-message-preview/unread indicator, most-recently-active first, selecting one sets it active; verify against real seeded conversations from the backend
+- [x] 4.3 Build the new-conversation picker (user directory, searchable) wired to `POST /api/v1/conversations` with `type: '1:1'`; verify both the new-conversation and reuse-existing-conversation scenarios from `specs/web/conversations` against the real backend (the backend already implements reuse - confirm the picker surfaces the same conversation both times)
+- [x] 4.4 Build the new-group flow (name + multi-select from directory) wired to `POST /api/v1/conversations` with `type: 'group'`; verify the too-few-members validation error shows client-side before any request is sent
+- [x] 4.5 Build the add-member action on a group conversation's header (hidden entirely for 1:1 conversations); verify both scenarios from `specs/web/conversations`
 
 ## 5. Messaging UI
 
