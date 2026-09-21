@@ -22,6 +22,12 @@ import { MongooseMessageRepository } from './infrastructure/persistence/mongoose
 import { ConversationsController } from './infrastructure/http/conversations.controller.js';
 import { MessagesController } from './infrastructure/http/messages.controller.js';
 
+// Infrastructure - WebSocket
+import { MessagingGateway } from './infrastructure/gateway/messaging.gateway.js';
+
+// Other modules
+import { IdentityModule } from '../identity/identity.module.js';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -29,6 +35,7 @@ import { MessagesController } from './infrastructure/http/messages.controller.js
       { name: 'Membership', schema: MembershipSchemaFactory },
       { name: 'Message', schema: MessageSchemaFactory },
     ]),
+    IdentityModule,
   ],
   controllers: [ConversationsController, MessagesController],
   providers: [
@@ -73,6 +80,9 @@ import { MessagesController } from './infrastructure/http/messages.controller.js
         new GetMessageHistory(conversationRepo, messageRepo),
       inject: [MongooseConversationRepository, MongooseMessageRepository],
     },
+
+    // WebSocket Gateway
+    MessagingGateway,
   ],
   exports: [
     // Export repositories for other modules

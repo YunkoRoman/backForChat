@@ -34,6 +34,20 @@ export class JwtAuthGuard implements CanActivate {
       return true;
     }
 
+    // Check if this is a WebSocket context
+    const type = context.getType();
+    if (type === 'ws') {
+      // WebSocket connection - authentication is handled in the gateway's connection handler
+      // The userId is stored in socket.data.userId by the gateway's handleConnection method
+      const socket = context.switchToWs().getClient();
+      if (socket.data?.userId) {
+        // Socket is already authenticated
+        return true;
+      }
+      // Socket is not authenticated - reject
+      throw new UnauthorizedException('WebSocket client not authenticated');
+    }
+
     // Route is protected - verify the access token
     const request = context.switchToHttp().getRequest<Request & { user?: { id: string } }>();
     const token = this.extractTokenFromHeader(request);
