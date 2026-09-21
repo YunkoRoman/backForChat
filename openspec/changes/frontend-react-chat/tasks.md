@@ -16,10 +16,10 @@
 
 ## 3. Authentication UI
 
-- [ ] 3.1 Build the login page (react-hook-form + zod validation) per `specs/web/authentication`; verify all three login scenarios (success navigates to chat, wrong credentials show inline error, client-side validation blocks bad input) manually against the running backend
-- [ ] 3.2 Build the registration page; verify its scenarios the same way, including the weak-password and duplicate-email server error surfacing correctly
-- [ ] 3.3 Build a protected-route wrapper that redirects to `/login` when there is no session (after `restoreSession` resolves) and away from `/login`/`/register` when there is one; verify by reloading `/chat` both signed-in and signed-out
-- [ ] 3.4 Build the logout action (in the chat shell's header, see section 4) wired to `AuthContext.logout`; verify it returns to `/login` and that reloading afterward does not silently restore the old session
+- [x] 3.1 Build the login page (react-hook-form + zod validation) per `specs/web/authentication`; verify all three login scenarios (success navigates to chat, wrong credentials show inline error, client-side validation blocks bad input) manually against the running backend
+- [x] 3.2 Build the registration page; verify its scenarios the same way, including the weak-password and duplicate-email server error surfacing correctly
+- [x] 3.3 Build a protected-route wrapper that redirects to `/login` when there is no session (after `restoreSession` resolves) and away from `/login`/`/register` when there is one; verify by reloading `/chat` both signed-in and signed-out
+- [x] 3.4 Build the logout action (in the chat shell's header, see section 4) wired to `AuthContext.logout`; verify it returns to `/login` and that reloading afterward does not silently restore the old session
 
 ## 4. Conversations UI
 
