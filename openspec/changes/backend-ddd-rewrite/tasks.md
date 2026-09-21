@@ -37,10 +37,10 @@
 
 ## 6. Messaging — domain & application
 
-- [ ] 6.1 Implement `Conversation` aggregate (type `1:1`/`group`, members) and `Message` entity in `messaging/domain`; verify unit tests enforce the group-needs-2+-members rule
-- [ ] 6.2 Implement `CreateOneToOneConversation` (reuse-if-exists) and `CreateGroupConversation` use cases; verify unit tests for both scenarios in `specs/messaging/conversations`
-- [ ] 6.3 Implement `AddMemberToConversation` use case (member-only, group-only); verify unit tests for all three scenarios in `specs/messaging/conversations`
-- [ ] 6.4 Implement `SendMessage` use case (member-only, non-empty, max-length) and `GetMessageHistory` use case (cursor pagination, member-only); verify unit tests for every scenario in `specs/messaging/messages`
+- [x] 6.1 Implement `Conversation` aggregate (type `1:1`/`group`, members) and `Message` entity in `messaging/domain`; verify unit tests enforce the group-needs-2+-members rule
+- [x] 6.2 Implement `CreateOneToOneConversation` (reuse-if-exists) and `CreateGroupConversation` use cases; verify unit tests for both scenarios in `specs/messaging/conversations`
+- [x] 6.3 Implement `AddMemberToConversation` use case (member-only, group-only); verify unit tests for all three scenarios in `specs/messaging/conversations`
+- [x] 6.4 Implement `SendMessage` use case (member-only, non-empty, max-length) and `GetMessageHistory` use case (cursor pagination, member-only); verify unit tests for every scenario in `specs/messaging/messages`
 
 ## 7. Messaging — infrastructure
 
