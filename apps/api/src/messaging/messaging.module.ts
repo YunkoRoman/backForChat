@@ -29,6 +29,7 @@ import { MessagingGateway } from './infrastructure/gateway/messaging.gateway.js'
 
 // Other modules
 import { IdentityModule } from '../identity/identity.module.js';
+import { PresenceModule } from '../presence/presence.module.js';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { IdentityModule } from '../identity/identity.module.js';
       { name: 'Message', schema: MessageSchemaFactory },
     ]),
     IdentityModule,
+    PresenceModule,
   ],
   controllers: [ConversationsController, MessagesController],
   providers: [

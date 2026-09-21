@@ -10,6 +10,7 @@ import { ConfigModule } from './config/config.module.js';
 import { ConfigService } from './config/config.service.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { MessagingModule } from './messaging/messaging.module.js';
+import { PresenceModule } from './presence/presence.module.js';
 import { JwtAuthGuard } from './identity/infrastructure/http/guards/jwt-auth.guard.js';
 
 @Module({
@@ -35,6 +36,8 @@ import { JwtAuthGuard } from './identity/infrastructure/http/guards/jwt-auth.gua
     IdentityModule,
     // Messaging module
     MessagingModule,
+    // Presence module
+    PresenceModule,
   ],
   controllers: [AppController],
   providers: [

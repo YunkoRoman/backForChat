@@ -781,4 +781,549 @@ describe('Messaging - WebSocket Gateway (e2e)', () => {
       });
     });
   });
+
+  describe('Presence - Online/Offline Status', () => {
+    it(
+      'should broadcast online status when user connects',
+      async () => {
+        return new Promise<void>((resolve, reject) => {
+        // Create a 1:1 conversation between user1 and user2
+        request(app.getHttpServer())
+          .post('/api/v1/conversations')
+          .set('Authorization', `Bearer ${user1AccessToken}`)
+          .send({
+            type: '1:1',
+            memberId: user2Id,
+          })
+          .expect(201)
+          .end((_err, res) => {
+            if (_err) {
+              reject(_err);
+              return;
+            }
+
+            // Note: conversationId created but not used in this test as we just care about the broadcast
+            const _conversationId = res.body.conversationId;
+
+            // Connect user1 first
+            const socket1 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user1AccessToken },
+              reconnection: false,
+            });
+
+            let presenceUpdateReceived = false;
+
+            socket1.on('connect', () => {
+              // User1 connected, now connect user2
+              // User1 should receive presence:update for user2 going online
+              const socket2 = io(`http://localhost:${serverPort}`, {
+                auth: { token: user2AccessToken },
+                reconnection: false,
+              });
+
+              socket1.on('presence:update', (data) => {
+                if (data.userId === user2Id && data.status === 'online') {
+                  presenceUpdateReceived = true;
+                  socket2.disconnect();
+                }
+              });
+
+              socket2.on('connect', () => {
+                // Just connected, wait for socket1 to receive the presence update
+                setTimeout(() => {
+                  socket2.disconnect();
+                }, 500);
+              });
+
+              socket2.on('disconnect', () => {
+                socket1.disconnect();
+              });
+            });
+
+            socket1.on('error', (_error) => {
+              reject(new Error('Socket1 error'));
+            });
+
+            socket1.on('disconnect', () => {
+              if (presenceUpdateReceived) {
+                resolve();
+              } else {
+                reject(new Error('Did not receive presence:update for user online'));
+              }
+            });
+
+            // Timeout
+            setTimeout(() => {
+              if (socket1.connected) socket1.disconnect();
+              if (!presenceUpdateReceived) {
+                reject(new Error('Test timed out'));
+              }
+            }, 10000);
+          });
+        });
+      },
+      15000,
+    );
+
+    it(
+      'should broadcast offline status when user disconnects',
+      async () => {
+      return new Promise<void>((resolve, reject) => {
+        // Create a 1:1 conversation between user1 and user2
+        request(app.getHttpServer())
+          .post('/api/v1/conversations')
+          .set('Authorization', `Bearer ${user1AccessToken}`)
+          .send({
+            type: '1:1',
+            memberId: user2Id,
+          })
+          .expect(201)
+          .end((_err, res) => {
+            if (_err) {
+              reject(_err);
+              return;
+            }
+
+            // Note: conversationId created but not used in this test as we just care about the broadcast
+            const _conversationId = res.body.conversationId;
+
+            // Connect both users first
+            const socket1 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user1AccessToken },
+              reconnection: false,
+            });
+
+            const socket2 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user2AccessToken },
+              reconnection: false,
+            });
+
+            let onlineReceived = false;
+            let offlineReceived = false;
+
+            socket1.on('connect', () => {
+              // Both are now connected
+              if (!onlineReceived) {
+                // Wait for the online update from socket2
+                socket1.on('presence:update', (data) => {
+                  if (
+                    data.userId === user2Id &&
+                    data.status === 'online' &&
+                    !onlineReceived
+                  ) {
+                    onlineReceived = true;
+                    // Now disconnect socket2 and wait for offline update
+                    socket2.disconnect();
+                  } else if (data.userId === user2Id && data.status === 'offline') {
+                    offlineReceived = true;
+                    socket1.disconnect();
+                  }
+                });
+              }
+            });
+
+            socket2.on('connect', () => {
+              // Just wait, socket1 will trigger disconnect
+            });
+
+            socket1.on('error', (_error) => {
+              reject(new Error('Socket1 error'));
+            });
+
+            socket1.on('disconnect', () => {
+              if (onlineReceived && offlineReceived) {
+                resolve();
+              } else {
+                reject(
+                  new Error(
+                    `Missing updates: online=${onlineReceived}, offline=${offlineReceived}`,
+                  ),
+                );
+              }
+            });
+
+            // Timeout
+            setTimeout(() => {
+              if (socket1.connected) socket1.disconnect();
+              if (socket2.connected) socket2.disconnect();
+              if (!offlineReceived) {
+                reject(new Error('Test timed out'));
+              }
+            }, 10000);
+          });
+        });
+      },
+      15000,
+    );
+  });
+
+  describe('Typing Indicators', () => {
+    it(
+      'should broadcast typing:start to other members',
+      async () => {
+      return new Promise<void>((resolve, reject) => {
+        // Create a 1:1 conversation
+        request(app.getHttpServer())
+          .post('/api/v1/conversations')
+          .set('Authorization', `Bearer ${user1AccessToken}`)
+          .send({
+            type: '1:1',
+            memberId: user2Id,
+          })
+          .expect(201)
+          .end((_err, res) => {
+            if (_err) {
+              reject(_err);
+              return;
+            }
+
+            const conversationId = res.body.conversationId;
+            let socket1JoinedRoom = false;
+            let socket2JoinedRoom = false;
+            let typingUpdateReceived = false;
+
+            const socket1 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user1AccessToken },
+              reconnection: false,
+            });
+
+            const socket2 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user2AccessToken },
+              reconnection: false,
+            });
+
+            const cleanup = () => {
+              if (socket1.connected) socket1.disconnect();
+              if (socket2.connected) socket2.disconnect();
+            };
+
+            const checkReady = () => {
+              if (socket1JoinedRoom && socket2JoinedRoom) {
+                socket1.emit('typing:start', { conversationId });
+              }
+            };
+
+            socket1.on('connect', () => {
+              socket1.emit('conversation:join', { conversationId });
+              setTimeout(() => {
+                socket1JoinedRoom = true;
+                checkReady();
+              }, 100);
+            });
+
+            socket2.on('connect', () => {
+              socket2.emit('conversation:join', { conversationId });
+              setTimeout(() => {
+                socket2JoinedRoom = true;
+                checkReady();
+              }, 100);
+            });
+
+            socket2.on('typing:update', (data) => {
+              if (
+                data.conversationId === conversationId &&
+                data.userId === user1Id &&
+                data.isTyping === true
+              ) {
+                typingUpdateReceived = true;
+                cleanup();
+              }
+            });
+
+            socket1.on('error', (_error) => {
+              cleanup();
+              reject(new Error('Socket1 error'));
+            });
+
+            socket2.on('error', (_error) => {
+              cleanup();
+              reject(new Error('Socket2 error'));
+            });
+
+            socket1.on('disconnect', () => {
+              if (socket2.connected) return;
+              if (typingUpdateReceived) {
+                resolve();
+              } else {
+                reject(new Error('Typing update was not received'));
+              }
+            });
+
+            socket2.on('disconnect', () => {
+              if (socket1.connected) return;
+              if (typingUpdateReceived) {
+                resolve();
+              } else {
+                reject(new Error('Typing update was not received'));
+              }
+            });
+
+            // Timeout
+            setTimeout(() => {
+              cleanup();
+              if (!typingUpdateReceived) {
+                reject(new Error('Test timed out'));
+              }
+            }, 10000);
+          });
+        });
+      },
+      15000,
+    );
+
+    it(
+      'should auto-clear typing indicator after timeout',
+      async () => {
+        return new Promise<void>((resolve, reject) => {
+        // Create a 1:1 conversation
+        request(app.getHttpServer())
+          .post('/api/v1/conversations')
+          .set('Authorization', `Bearer ${user1AccessToken}`)
+          .send({
+            type: '1:1',
+            memberId: user2Id,
+          })
+          .expect(201)
+          .end((_err, res) => {
+            if (_err) {
+              reject(_err);
+              return;
+            }
+
+            const conversationId = res.body.conversationId;
+            let socket1JoinedRoom = false;
+            let socket2JoinedRoom = false;
+            let typingStartReceived = false;
+            let typingClearedReceived = false;
+
+            const socket1 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user1AccessToken },
+              reconnection: false,
+            });
+
+            const socket2 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user2AccessToken },
+              reconnection: false,
+            });
+
+            const cleanup = () => {
+              if (socket1.connected) socket1.disconnect();
+              if (socket2.connected) socket2.disconnect();
+            };
+
+            const checkReady = () => {
+              if (socket1JoinedRoom && socket2JoinedRoom) {
+                // Send typing:start but NOT typing:stop
+                socket1.emit('typing:start', { conversationId });
+              }
+            };
+
+            socket1.on('connect', () => {
+              socket1.emit('conversation:join', { conversationId });
+              setTimeout(() => {
+                socket1JoinedRoom = true;
+                checkReady();
+              }, 100);
+            });
+
+            socket2.on('connect', () => {
+              socket2.emit('conversation:join', { conversationId });
+              setTimeout(() => {
+                socket2JoinedRoom = true;
+                checkReady();
+              }, 100);
+            });
+
+            socket2.on('typing:update', (data) => {
+              if (
+                data.conversationId === conversationId &&
+                data.userId === user1Id
+              ) {
+                if (data.isTyping === true) {
+                  typingStartReceived = true;
+                } else if (data.isTyping === false && typingStartReceived) {
+                  // This should be the auto-clear
+                  typingClearedReceived = true;
+                  cleanup();
+                }
+              }
+            });
+
+            socket1.on('error', (_error) => {
+              cleanup();
+              reject(new Error('Socket1 error'));
+            });
+
+            socket2.on('error', (_error) => {
+              cleanup();
+              reject(new Error('Socket2 error'));
+            });
+
+            socket1.on('disconnect', () => {
+              if (socket2.connected) return;
+              if (typingStartReceived && typingClearedReceived) {
+                resolve();
+              } else {
+                reject(
+                  new Error(
+                    `Missing typing updates: start=${typingStartReceived}, cleared=${typingClearedReceived}`,
+                  ),
+                );
+              }
+            });
+
+            socket2.on('disconnect', () => {
+              if (socket1.connected) return;
+              if (typingStartReceived && typingClearedReceived) {
+                resolve();
+              } else {
+                reject(
+                  new Error(
+                    `Missing typing updates: start=${typingStartReceived}, cleared=${typingClearedReceived}`,
+                  ),
+                );
+              }
+            });
+
+            // Timeout - should be longer than the typing timeout (5 seconds)
+            setTimeout(() => {
+              cleanup();
+              if (!typingClearedReceived) {
+                reject(new Error('Test timed out - typing:update (cleared) not received'));
+              }
+            }, 15000);
+          });
+        });
+      },
+      20000,
+    );
+
+    it(
+      'should clear typing indicator on typing:stop',
+      async () => {
+        return new Promise<void>((resolve, reject) => {
+        // Create a 1:1 conversation
+        request(app.getHttpServer())
+          .post('/api/v1/conversations')
+          .set('Authorization', `Bearer ${user1AccessToken}`)
+          .send({
+            type: '1:1',
+            memberId: user2Id,
+          })
+          .expect(201)
+          .end((_err, res) => {
+            if (_err) {
+              reject(_err);
+              return;
+            }
+
+            const conversationId = res.body.conversationId;
+            let socket1JoinedRoom = false;
+            let socket2JoinedRoom = false;
+            let typingStartReceived = false;
+            let typingStoppedReceived = false;
+
+            const socket1 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user1AccessToken },
+              reconnection: false,
+            });
+
+            const socket2 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user2AccessToken },
+              reconnection: false,
+            });
+
+            const cleanup = () => {
+              if (socket1.connected) socket1.disconnect();
+              if (socket2.connected) socket2.disconnect();
+            };
+
+            const checkReady = () => {
+              if (socket1JoinedRoom && socket2JoinedRoom) {
+                socket1.emit('typing:start', { conversationId });
+                setTimeout(() => {
+                  socket1.emit('typing:stop', { conversationId });
+                }, 200);
+              }
+            };
+
+            socket1.on('connect', () => {
+              socket1.emit('conversation:join', { conversationId });
+              setTimeout(() => {
+                socket1JoinedRoom = true;
+                checkReady();
+              }, 100);
+            });
+
+            socket2.on('connect', () => {
+              socket2.emit('conversation:join', { conversationId });
+              setTimeout(() => {
+                socket2JoinedRoom = true;
+                checkReady();
+              }, 100);
+            });
+
+            socket2.on('typing:update', (data) => {
+              if (
+                data.conversationId === conversationId &&
+                data.userId === user1Id
+              ) {
+                if (data.isTyping === true) {
+                  typingStartReceived = true;
+                } else if (data.isTyping === false && typingStartReceived) {
+                  typingStoppedReceived = true;
+                  cleanup();
+                }
+              }
+            });
+
+            socket1.on('error', (_error) => {
+              cleanup();
+              reject(new Error('Socket1 error'));
+            });
+
+            socket2.on('error', (_error) => {
+              cleanup();
+              reject(new Error('Socket2 error'));
+            });
+
+            socket1.on('disconnect', () => {
+              if (socket2.connected) return;
+              if (typingStartReceived && typingStoppedReceived) {
+                resolve();
+              } else {
+                reject(
+                  new Error(
+                    `Missing typing updates: start=${typingStartReceived}, stopped=${typingStoppedReceived}`,
+                  ),
+                );
+              }
+            });
+
+            socket2.on('disconnect', () => {
+              if (socket1.connected) return;
+              if (typingStartReceived && typingStoppedReceived) {
+                resolve();
+              } else {
+                reject(
+                  new Error(
+                    `Missing typing updates: start=${typingStartReceived}, stopped=${typingStoppedReceived}`,
+                  ),
+                );
+              }
+            });
+
+            // Timeout
+            setTimeout(() => {
+              cleanup();
+              if (!typingStoppedReceived) {
+                reject(new Error('Test timed out'));
+              }
+            }, 10000);
+          });
+        });
+      },
+      15000,
+    );
+  });
 });

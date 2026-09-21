@@ -11,6 +11,7 @@ import { JwtTokenService } from '../../../identity/infrastructure/adapters/jwt-t
 import { InvalidTokenError } from '../../../identity/domain/errors.js';
 import { SendMessage, SendMessageRequest, MarkConversationRead, MarkConversationReadRequest } from '../../application/index.js';
 import { MongooseConversationRepository } from '../persistence/mongoose-conversation.repository.js';
+import { PresenceTracker } from '../../../presence/infrastructure/presence-tracker.js';
 
 /**
  * Socket data shape for typed socket instances
@@ -47,11 +48,26 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   private readonly logger = new Logger(MessagingGateway.name);
 
+  /**
+   * Typing indicator timeout in milliseconds.
+   * If a member sends typing:start but no typing:stop within this interval,
+   * the server automatically broadcasts typing:false.
+   */
+  private readonly TYPING_TIMEOUT_MS = 5000; // 5 seconds
+
+  /**
+   * Map of (conversationId, userId) -> timeout handle
+   * Used to track and clear typing timeouts.
+   * Key format: `${conversationId}:${userId}`
+   */
+  private typingTimeouts = new Map<string, NodeJS.Timeout>();
+
   constructor(
     private jwtTokenService: JwtTokenService,
     private sendMessage: SendMessage,
     private markConversationRead: MarkConversationRead,
     private conversationRepository: MongooseConversationRepository,
+    private presenceTracker: PresenceTracker,
   ) {}
 
   /**
@@ -60,6 +76,11 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
    * Authenticates the client by verifying the JWT access token from the handshake.
    * If authentication fails, the connection is immediately refused.
    * If successful, the userId is stored on socket.data for the lifetime of the connection.
+   *
+   * On successful authentication:
+   * - Tracks the connection in PresenceTracker
+   * - If this is the user's first connection (status transition offline -> online),
+   *   notifies members of shared conversations that this user is now online
    */
   async handleConnection(socket: AuthenticatedSocket): Promise<void> {
     try {
@@ -81,6 +102,15 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
       socket.data.userId = userId;
 
       this.logger.debug(`User ${userId} connected via socket ${socket.id}`);
+
+      // Track this connection in the presence tracker
+      const isFirstConnection = this.presenceTracker.addConnection(userId, socket.id);
+
+      // If this is the first connection (user just came online),
+      // notify members of shared conversations
+      if (isFirstConnection) {
+        await this.broadcastPresenceUpdate(userId, 'online');
+      }
     } catch (error) {
       if (error instanceof InvalidTokenError) {
         this.logger.warn(`Connection attempt with invalid token from ${socket.id}`);
@@ -93,12 +123,39 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   /**
    * Handle WebSocket disconnections
+   *
+   * Removes the connection from PresenceTracker.
+   * If this was the user's last connection (status transition online -> offline),
+   * notifies members of shared conversations that this user is now offline.
+   *
+   * Also cleans up any pending typing timeout handlers for this socket's user.
    */
   handleDisconnect(socket: Socket): void {
     const userId = (socket as AuthenticatedSocket).data?.userId;
     this.logger.debug(
       `Socket ${socket.id} disconnected${userId ? ` (user ${userId})` : ''}`,
     );
+
+    if (!userId) {
+      return;
+    }
+
+    // Track the disconnection
+    const isLastConnection = this.presenceTracker.removeConnection(userId, socket.id);
+
+    // Clean up any pending typing timeouts for this user
+    this.cleanupUserTypingTimeouts(userId);
+
+    // If this was the user's last connection (now offline),
+    // notify members of shared conversations
+    if (isLastConnection) {
+      this.broadcastPresenceUpdate(userId, 'offline').catch((error) => {
+        this.logger.error(
+          `Error broadcasting offline status for user ${userId}:`,
+          error,
+        );
+      });
+    }
   }
 
   /**
@@ -343,6 +400,257 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
     } catch (error) {
       this.logger.error(`Unexpected error in message:read handler:`, error);
       socket.emit('message:read:error', { message: 'Internal server error' });
+    }
+  }
+
+  /**
+   * Handle typing indicator - user starts typing
+   *
+   * Verifies the user is a member of the conversation, then broadcasts a typing update
+   * to other members in that conversation room (excluding the sender).
+   *
+   * Also starts a server-side timeout that will automatically clear the typing indicator
+   * if no typing:stop or further typing:start arrives within the timeout period.
+   */
+  @SubscribeMessage('typing:start')
+  handleTypingStart(
+    socket: AuthenticatedSocket,
+    data: { conversationId: string },
+  ): void {
+    this.handleTypingStartAsync(socket, data).catch((error) => {
+      this.logger.error(`Unhandled error in typing:start:`, error);
+    });
+  }
+
+  private async handleTypingStartAsync(
+    socket: AuthenticatedSocket,
+    data: { conversationId: string },
+  ): Promise<void> {
+    try {
+      const userId = socket.data.userId;
+      if (!userId) {
+        this.logger.warn(`typing:start from unauthenticated socket ${socket.id}`);
+        socket.emit('typing:start:error', { message: 'Not authenticated' });
+        return;
+      }
+
+      const { conversationId } = data;
+
+      // Verify the user is a member of the conversation
+      const conversation = await this.conversationRepository.findById(conversationId);
+      if (!conversation) {
+        this.logger.warn(
+          `User ${userId} attempted typing:start in non-existent conversation ${conversationId}`,
+        );
+        socket.emit('typing:start:error', { message: 'Conversation not found' });
+        return;
+      }
+
+      if (!conversation.isMember(userId)) {
+        this.logger.warn(
+          `User ${userId} attempted typing:start in conversation ${conversationId} they are not a member of`,
+        );
+        socket.emit('typing:start:error', { message: 'Not a member of this conversation' });
+        return;
+      }
+
+      // Broadcast typing update to other members in the room
+      const roomName = `conversation:${conversationId}`;
+      socket.to(roomName).emit('typing:update', {
+        conversationId,
+        userId,
+        isTyping: true,
+      });
+
+      this.logger.debug(
+        `User ${userId} started typing in conversation ${conversationId}`,
+      );
+
+      // Set up auto-clear timeout
+      const timeoutKey = `${conversationId}:${userId}`;
+      this.clearTypingTimeout(timeoutKey);
+
+      const timeout = setTimeout(() => {
+        // Timeout expired - broadcast auto-clear to room
+        this.server.to(roomName).emit('typing:update', {
+          conversationId,
+          userId,
+          isTyping: false,
+        });
+        this.typingTimeouts.delete(timeoutKey);
+        this.logger.debug(
+          `Typing indicator for user ${userId} in conversation ${conversationId} auto-cleared after timeout`,
+        );
+      }, this.TYPING_TIMEOUT_MS);
+
+      this.typingTimeouts.set(timeoutKey, timeout);
+    } catch (error) {
+      this.logger.error(`Unexpected error in typing:start handler:`, error);
+      socket.emit('typing:start:error', { message: 'Internal server error' });
+    }
+  }
+
+  /**
+   * Handle typing indicator - user stops typing
+   *
+   * Verifies the user is a member of the conversation, then broadcasts a typing update
+   * to other members in that conversation room (excluding the sender).
+   *
+   * Also clears any pending auto-clear timeout for this user in this conversation.
+   */
+  @SubscribeMessage('typing:stop')
+  handleTypingStop(
+    socket: AuthenticatedSocket,
+    data: { conversationId: string },
+  ): void {
+    this.handleTypingStopAsync(socket, data).catch((error) => {
+      this.logger.error(`Unhandled error in typing:stop:`, error);
+    });
+  }
+
+  private async handleTypingStopAsync(
+    socket: AuthenticatedSocket,
+    data: { conversationId: string },
+  ): Promise<void> {
+    try {
+      const userId = socket.data.userId;
+      if (!userId) {
+        this.logger.warn(`typing:stop from unauthenticated socket ${socket.id}`);
+        socket.emit('typing:stop:error', { message: 'Not authenticated' });
+        return;
+      }
+
+      const { conversationId } = data;
+
+      // Verify the user is a member of the conversation
+      const conversation = await this.conversationRepository.findById(conversationId);
+      if (!conversation) {
+        this.logger.warn(
+          `User ${userId} attempted typing:stop in non-existent conversation ${conversationId}`,
+        );
+        socket.emit('typing:stop:error', { message: 'Conversation not found' });
+        return;
+      }
+
+      if (!conversation.isMember(userId)) {
+        this.logger.warn(
+          `User ${userId} attempted typing:stop in conversation ${conversationId} they are not a member of`,
+        );
+        socket.emit('typing:stop:error', { message: 'Not a member of this conversation' });
+        return;
+      }
+
+      // Broadcast typing update to other members in the room
+      const roomName = `conversation:${conversationId}`;
+      socket.to(roomName).emit('typing:update', {
+        conversationId,
+        userId,
+        isTyping: false,
+      });
+
+      this.logger.debug(
+        `User ${userId} stopped typing in conversation ${conversationId}`,
+      );
+
+      // Clear any pending auto-clear timeout
+      const timeoutKey = `${conversationId}:${userId}`;
+      this.clearTypingTimeout(timeoutKey);
+    } catch (error) {
+      this.logger.error(`Unexpected error in typing:stop handler:`, error);
+      socket.emit('typing:stop:error', { message: 'Internal server error' });
+    }
+  }
+
+  /**
+   * Broadcast a presence update (online/offline) to members of shared conversations.
+   *
+   * Finds all conversations the user is a member of, collects all other member ids,
+   * and emits a presence:update event to all connected sockets of those members.
+   *
+   * Implementation strategy:
+   * - Fetches all conversations for the user
+   * - Extracts unique member ids from all conversations (excluding the user themselves)
+   * - For each member, gets their connected socket ids from PresenceTracker
+   * - Emits presence:update to each of those sockets
+   *
+   * @param userId The user whose status changed
+   * @param status The new status: 'online' or 'offline'
+   */
+  private async broadcastPresenceUpdate(
+    userId: string,
+    status: 'online' | 'offline',
+  ): Promise<void> {
+    try {
+      // Get all conversations for this user
+      const conversations = await this.conversationRepository.findAllForUser(userId);
+
+      // Collect unique member ids across all conversations (excluding the user)
+      const memberIds = new Set<string>();
+      for (const conversation of conversations) {
+        for (const member of conversation.memberIds) {
+          if (member !== userId) {
+            memberIds.add(member);
+          }
+        }
+      }
+
+      // Emit presence:update to each member's connected sockets
+      for (const memberId of memberIds) {
+        const sockets = this.presenceTracker.getSocketsForUser(memberId);
+        for (const socketId of sockets) {
+          const socket = this.server.sockets.sockets.get(socketId);
+          if (socket) {
+            socket.emit('presence:update', {
+              userId,
+              status,
+            });
+          }
+        }
+      }
+
+      this.logger.debug(
+        `Presence update (${status}) for user ${userId} sent to ${memberIds.size} members`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error broadcasting presence update for user ${userId}:`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Clear a typing timeout if it exists.
+   *
+   * @param timeoutKey The key: `${conversationId}:${userId}`
+   */
+  private clearTypingTimeout(timeoutKey: string): void {
+    const existingTimeout = this.typingTimeouts.get(timeoutKey);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      this.typingTimeouts.delete(timeoutKey);
+    }
+  }
+
+  /**
+   * Clean up all pending typing timeouts for a user.
+   * Called when the user disconnects to avoid timer leaks.
+   *
+   * @param userId The user id
+   */
+  private cleanupUserTypingTimeouts(userId: string): void {
+    const keysToDelete: string[] = [];
+    for (const key of this.typingTimeouts.keys()) {
+      // Key format: `${conversationId}:${userId}`
+      if (key.endsWith(`:${userId}`)) {
+        this.clearTypingTimeout(key);
+        keysToDelete.push(key);
+      }
+    }
+    if (keysToDelete.length > 0) {
+      this.logger.debug(
+        `Cleaned up ${keysToDelete.length} typing timeouts for user ${userId}`,
+      );
     }
   }
 }

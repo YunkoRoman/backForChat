@@ -56,9 +56,9 @@
 
 ## 9. Presence
 
-- [ ] 9.1 Implement an in-process presence tracker (connected-socket count per user) in `presence/infrastructure`; verify unit test that status flips to offline only after the last connection for a user ends
-- [ ] 9.2 Wire presence to the shared WS gateway's connect/disconnect lifecycle, emitting `presence:update` to members of shared conversations; verify a WS e2e test for both online and offline scenarios in `specs/presence/presence-tracking`
-- [ ] 9.3 Implement `typing:start`/`typing:stop` WS handlers with a server-side timeout that clears the indicator if no stop signal arrives; verify a WS e2e test for the auto-clear scenario in `specs/presence/presence-tracking`
+- [x] 9.1 Implement an in-process presence tracker (connected-socket count per user) in `presence/infrastructure`; verify unit test that status flips to offline only after the last connection for a user ends
+- [x] 9.2 Wire presence to the shared WS gateway's connect/disconnect lifecycle, emitting `presence:update` to members of shared conversations; verify a WS e2e test for both online and offline scenarios in `specs/presence/presence-tracking`
+- [x] 9.3 Implement `typing:start`/`typing:stop` WS handlers with a server-side timeout that clears the indicator if no stop signal arrives; verify a WS e2e test for the auto-clear scenario in `specs/presence/presence-tracking`
 
 ## 10. Event bus (RabbitMQ)
 
