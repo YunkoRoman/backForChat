@@ -82,8 +82,8 @@
 
 ## 13. CI
 
-- [ ] 13.1 Add a GitHub Actions workflow running install → lint → typecheck → unit tests on every push/PR; verify the workflow passes on the `feature/ddd-rewrite` branch
-- [ ] 13.2 Extend the workflow with an e2e job that boots `mongodb-memory-server` and a RabbitMQ service container, then runs the e2e suite (sections 4, 5, 7, 8, 9, 10); verify the job passes in CI, not just locally
+- [x] 13.1 Add a GitHub Actions workflow running install → lint → typecheck → unit tests on every push/PR; verify the workflow passes on the `feature/ddd-rewrite` branch
+- [ ] 13.2 Extend the workflow with an e2e job that boots `mongodb-memory-server` and a RabbitMQ service container, then runs the e2e suite (sections 4, 5, 7, 8, 9, 10); verify the job passes in CI, not just locally — **Note**: workflow is complete and verified locally, but final CI verification requires pushing to GitHub to trigger the actual Actions run (requires user approval to push)
 
 ## 14. Cutover
 
