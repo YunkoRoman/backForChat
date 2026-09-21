@@ -1,7 +1,8 @@
-import { Controller, Get, Query, Req, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Query, Req, BadRequestException, NotFoundException } from '@nestjs/common';
 import type { AuthenticatedRequest } from './types/authenticated-request.js';
 import { ListUsers } from '../../application/index.js';
 import { UserDto } from './dtos/user.dto.js';
+import { MongooseUserRepository } from '../persistence/mongoose-user.repository.js';
 
 export interface PaginatedUsersResponse {
   users: UserDto[];
@@ -12,7 +13,34 @@ export interface PaginatedUsersResponse {
 
 @Controller('users')
 export class UsersController {
-  constructor(private listUsersUseCase: ListUsers) {}
+  constructor(
+    private listUsersUseCase: ListUsers,
+    private userRepository: MongooseUserRepository,
+  ) {}
+
+  /**
+   * Get the currently authenticated user's own profile.
+   * Lets the frontend resolve `who am I` after a silent token refresh,
+   * which returns only a new access token, not user details.
+   */
+  @Get('me')
+  async me(@Req() req: AuthenticatedRequest): Promise<UserDto> {
+    if (!req.user?.id) {
+      throw new BadRequestException('User ID not found in request');
+    }
+
+    const user = await this.userRepository.findById(req.user.id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      id: user.id,
+      email: user.email.value,
+      displayName: user.displayName,
+      createdAt: user.createdAt,
+    };
+  }
 
   /**
    * Get a paginated list of registered users, excluding the requester

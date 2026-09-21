@@ -2,17 +2,17 @@
 
 ## 1. Scaffold
 
-- [ ] 1.1 Scaffold `apps/web` with Vite (React + TypeScript template), add it to the root npm workspace; verify `npm run build` (in `apps/web`) succeeds on the empty scaffold
-- [ ] 1.2 Install and configure Tailwind CSS; add the approved design tokens (colors: `bg`, `surface`, `text`, `text-secondary`, `border`, `accent #C1552C`, `accent-hover #A8461F`, `accent-soft #FBE7DC`, `online #3F9142`; font families: Fraunces for display, Manrope for UI) to the Tailwind config as named theme values; verify a test element using `bg-accent` and `font-display` renders with the right computed styles
-- [ ] 1.3 Add `react-router`, set up routes `/login`, `/register`, `/chat` with a placeholder page each; verify navigating between them in the browser works
-- [ ] 1.4 Add ESLint + Prettier config for `apps/web` (or reuse root config if one exists); verify lint runs clean on the scaffold
+- [x] 1.1 Scaffold `apps/web` with Vite (React + TypeScript template), add it to the root npm workspace; verify `npm run build` (in `apps/web`) succeeds on the empty scaffold
+- [x] 1.2 Install and configure Tailwind CSS; add the approved design tokens (colors: `bg`, `surface`, `text`, `text-secondary`, `border`, `accent #C1552C`, `accent-hover #A8461F`, `accent-soft #FBE7DC`, `online #3F9142`; font families: Fraunces for display, Manrope for UI) to the Tailwind config as named theme values; verify a test element using `bg-accent` and `font-display` renders with the right computed styles
+- [x] 1.3 Add `react-router`, set up routes `/login`, `/register`, `/chat` with a placeholder page each; verify navigating between them in the browser works
+- [x] 1.4 Add ESLint + Prettier config for `apps/web` (or reuse root config if one exists); verify lint runs clean on the scaffold
 
 ## 2. API & socket client layer
 
-- [ ] 2.1 Implement a `fetchApi` wrapper (`credentials: 'include'`, base URL from an env var, JSON handling) with a 401 interceptor that calls the refresh endpoint once and retries the original request, signing out on a second failure; verify by manually hitting a protected endpoint with an expired token against the running `apps/api` and observing the transparent retry in the network tab
-- [ ] 2.2 Implement an `AuthContext` holding the in-memory access token and current user, with `login`, `register`, `logout`, and an app-load `restoreSession` (calls refresh) function; verify a manual reload of `/chat` while signed in restores the session before rendering the chat view
-- [ ] 2.3 Implement a `SocketContext`: connects once authenticated (`auth: { token }` re-evaluated per connection attempt), exposes `emit`/`on` helpers, re-joins the currently-active conversation's room on every `connect` event (initial and reconnect); verify in the browser console that a manual server restart triggers a reconnect and the room rejoin fires
-- [ ] 2.4 Wire TanStack Query's `QueryClientProvider` at the app root; verify a trivial query (e.g. `GET /api/v1/users/me` if available, else the user directory) round-trips against the real backend
+- [x] 2.1 Implement a `fetchApi` wrapper (`credentials: 'include'`, base URL from an env var, JSON handling) with a 401 interceptor that calls the refresh endpoint once and retries the original request, signing out on a second failure; verify by manually hitting a protected endpoint with an expired token against the running `apps/api` and observing the transparent retry in the network tab
+- [x] 2.2 Implement an `AuthContext` holding the in-memory access token and current user, with `login`, `register`, `logout`, and an app-load `restoreSession` (calls refresh) function; verify a manual reload of `/chat` while signed in restores the session before rendering the chat view
+- [x] 2.3 Implement a `SocketContext`: connects once authenticated (`auth: { token }` re-evaluated per connection attempt), exposes `emit`/`on` helpers, re-joins the currently-active conversation's room on every `connect` event (initial and reconnect); verify in the browser console that a manual server restart triggers a reconnect and the room rejoin fires
+- [x] 2.4 Wire TanStack Query's `QueryClientProvider` at the app root; verify a trivial query (e.g. `GET /api/v1/users/me` if available, else the user directory) round-trips against the real backend
 
 ## 3. Authentication UI
 

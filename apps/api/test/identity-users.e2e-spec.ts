@@ -70,6 +70,27 @@ describe('Identity - User Directory (e2e)', () => {
     }
   });
 
+  describe('GET /api/v1/users/me', () => {
+    it("returns the authenticated requester's own profile", async () => {
+      const requesterEmail = users[0].email;
+      const requesterToken = accessTokens[requesterEmail];
+
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/users/me')
+        .set('Authorization', `Bearer ${requesterToken}`)
+        .expect(200);
+
+      expect(res.body.email).toBe(requesterEmail.toLowerCase());
+      expect(res.body.displayName).toBe(users[0].displayName);
+      expect(res.body).not.toHaveProperty('password');
+      expect(res.body).not.toHaveProperty('passwordHash');
+    });
+
+    it('rejects an unauthenticated request', async () => {
+      await request(app.getHttpServer()).get('/api/v1/users/me').expect(401);
+    });
+  });
+
   describe('GET /api/v1/users', () => {
     it('should list users excluding the requester, paginated', async () => {
       const requesterEmail = users[0].email;
