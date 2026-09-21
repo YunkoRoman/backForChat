@@ -1,124 +1,225 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# BackForChat API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A NestJS-based chat API implementing Domain-Driven Design principles with MongoDB persistence and RabbitMQ event streaming.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Prerequisites
 
-## Description
+- Node.js 22+
+- MongoDB (local instance or Docker)
+- RabbitMQ (local instance or Docker)
+- Docker & Docker Compose (for containerized deployment)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Local Development
 
-## Project setup
+### 1. Setup Environment
+
+Copy the example configuration and customize as needed:
 
 ```bash
-$ npm install
+cp .env.example .env
 ```
 
-## Compile and run the project
+Default values in `.env.example`:
+- `MONGO_URI`: `mongodb://localhost:27017/chat`
+- `RABBITMQ_URL`: `amqp://guest:guest@localhost:5672`
+- `PORT`: `3000`
+- `NODE_ENV`: `development`
+- `FRONTEND_ORIGIN`: `http://localhost:5173` (Vite's default dev server port for `apps/web`)
+
+### 2. Option A: Run Services Locally
+
+**Install dependencies:**
+```bash
+npm install
+```
+
+**Start MongoDB (if not running):**
+```bash
+# Using Homebrew (macOS)
+brew services start mongodb-community
+
+# Or using docker
+docker run -d -p 27017:27017 --name mongo mongo:latest
+```
+
+**Start RabbitMQ (if not running):**
+```bash
+# Using Homebrew (macOS)
+brew services start rabbitmq
+
+# Or using docker
+docker run -d -p 5672:5672 -p 15672:15672 --name rabbitmq rabbitmq:3.13-management-alpine
+```
+
+**Start the API in development mode:**
+```bash
+npm run start:dev
+```
+
+The API will be available at `http://localhost:3000/api/v1`
+
+### 3. Option B: Run Full Stack with Docker Compose
+
+From the repository root, copy the compose env template and start all services (MongoDB, RabbitMQ, API, Web):
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+cp .env.docker .env   # or pass --env-file .env.docker to the command below
+docker compose up
 ```
 
-## Run tests
+Host ports are intentionally remapped off the defaults so this doesn't collide
+with services you might already be running locally (a local mongod, a local
+RabbitMQ, a `npm run start:dev` on :3000):
+
+- **API**: http://localhost:13000/api/v1 (container listens on 3000)
+- **Web (Frontend)**: http://localhost:8000
+- **MongoDB**: localhost:27018 (container listens on 27017)
+- **RabbitMQ AMQP**: localhost:5673 (container listens on 5672)
+- **RabbitMQ Management UI**: http://localhost:15673 (guest/guest, container listens on 15672)
+
+### Cleaning Up Docker Services
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+docker compose down -v
 ```
 
-## Deployment
+The `-v` flag removes named volumes (data is not persisted).
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Building & Deployment
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Build for Production
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run build
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Produces optimized output in `dist/`
 
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-To add it to this project:
+### Start Production Instance
 
 ```bash
-$ npm install @nestjs/observe
+npm run start:prod
 ```
 
-Then follow the [setup guide](https://docs.nestjs.com/observability/overview) - it takes a single import and an app key.
+Or using the Docker image directly (build context must be the repo root,
+since this is an npm workspace):
 
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
+```bash
+docker build -f apps/api/Dockerfile -t backforchat-api .
+docker run -p 3000:3000 \
+  -e MONGO_URI="mongodb://mongo:27017/chat" \
+  -e RABBITMQ_URL="amqp://guest:guest@rabbitmq:5672" \
+  -e JWT_ACCESS_SECRET="your-secret" \
+  -e JWT_REFRESH_SECRET="your-secret" \
+  -e FRONTEND_ORIGIN="http://localhost:8000" \
+  backforchat-api
+```
 
-## Resources
+## Testing
 
-Check out a few resources that may come in handy when working with NestJS:
+### Unit & Integration Tests
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+npm run test
+```
 
-## Support
+Watch mode for development:
+```bash
+npm run test:watch
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Coverage report:
+```bash
+npm run test:cov
+```
 
-## Stay in touch
+### End-to-End Tests
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+npm run test:e2e
+```
 
-## License
+E2E tests use an in-memory MongoDB instance and do not require external services.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## Code Quality
+
+### Lint
+
+```bash
+npm run lint
+```
+
+### Format Code
+
+```bash
+npm run format
+```
+
+## API Endpoints
+
+The API implements the following core features:
+
+- **Authentication**: `/api/v1/auth/register`, `/login`, `/refresh`, `/logout`
+- **Users**: `GET /api/v1/users` (paginated user list)
+- **Conversations**: `POST /api/v1/conversations`, `GET /api/v1/conversations`, `POST /api/v1/conversations/:id/members`
+- **Messages**: `GET /api/v1/conversations/:id/messages`
+- **WebSocket**: Real-time messaging and presence tracking via Socket.IO
+
+See `openspec/specs/` for detailed API specifications.
+
+## Architecture
+
+This project follows **Domain-Driven Design** (DDD) with module-based layering:
+
+```
+src/
+├── shared-kernel/       # Cross-cutting primitives (Result, DomainError, base interfaces)
+├── identity/            # User authentication & management
+│   ├── domain/
+│   ├── application/
+│   └── infrastructure/
+├── messaging/           # Conversations & messages
+│   ├── domain/
+│   ├── application/
+│   └── infrastructure/
+├── presence/            # User online/offline tracking
+│   ├── domain/
+│   ├── application/
+│   └── infrastructure/
+└── config/              # Environment & app configuration
+```
+
+Each module is isolated with:
+- **domain/**: Pure business logic (no framework dependencies)
+- **application/**: Use cases orchestrating domain entities
+- **infrastructure/**: Persistence (Mongoose), HTTP (NestJS controllers), WebSocket gateways
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MONGO_URI` | Yes | - | MongoDB connection string |
+| `JWT_ACCESS_SECRET` | Yes | - | Secret for access token signing (min 32 chars) |
+| `JWT_REFRESH_SECRET` | Yes | - | Secret for refresh token signing (min 32 chars) |
+| `RABBITMQ_URL` | Yes | - | RabbitMQ connection string |
+| `FRONTEND_ORIGIN` | Yes | - | Allowed CORS origin for the frontend |
+| `PORT` | No | `3000` | HTTP server port |
+| `NODE_ENV` | No | `development` | Runtime environment |
+
+## Troubleshooting
+
+**MongoDB connection refused**
+- Ensure MongoDB is running: `mongosh --version` and `mongosh` should connect
+- Check connection string in `.env` matches your setup
+
+**RabbitMQ connection refused**
+- Ensure RabbitMQ is running: `sudo service rabbitmq-server status` or `brew services list`
+- Default credentials are guest/guest
+
+**Port already in use**
+- Change `PORT` in `.env` or stop the process using the port
+- In Docker Compose, adjust port mappings in `docker-compose.yml`
+
+**Out of memory errors in tests**
+- The e2e tests use in-memory MongoDB which requires significant RAM
+- Run with: `NODE_OPTIONS="--max-old-space-size=4096" npm run test:e2e`

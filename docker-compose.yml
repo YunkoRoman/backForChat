@@ -1,0 +1,99 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: backforchat-mongo
+    restart: unless-stopped
+    ports:
+      # host 27018, not 27017 - a local mongod may already be running on
+      # 27017 (it was during this project's own development)
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_DATABASE: chat
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: backforchat-rabbitmq
+    restart: unless-stopped
+    ports:
+      # host 5673/15673, not 5672/15672 - a local RabbitMQ may already be
+      # running on the standard ports (it was during this project's own
+      # development)
+      - "5673:5672"
+      - "15673:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: backforchat-api
+    restart: unless-stopped
+    ports:
+      # host 13000, not 3000 - a local dev server may already be running on
+      # 3000 (it was during this project's own development)
+      - "13000:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      MONGO_URI: mongodb://mongo:27017/chat
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-your_access_secret_here}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your_refresh_secret_here}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8000}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:3000/api/v1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # The browser (not the web container) calls this, so it must be the
+        # HOST-published api port (13000), not the container-internal one.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:13000/api/v1}
+    container_name: backforchat-web
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  mongo_data:
+  mongo_config:
+  rabbitmq_data:
