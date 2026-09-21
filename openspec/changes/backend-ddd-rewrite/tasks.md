@@ -69,9 +69,9 @@
 
 ## 11. Cross-cutting hardening
 
-- [ ] 11.1 Add `helmet()` and a `FRONTEND_ORIGIN`-driven CORS allowlist (replacing the old open `cors()` + manual `Access-Control-Allow-Origin` header pair); verify an e2e test that a disallowed origin is rejected
-- [ ] 11.2 Add a global exception filter that returns sanitized error responses (no stack traces) when `NODE_ENV=production`; verify a test asserting the response body excludes stack traces in that mode
-- [ ] 11.3 Add structured request/error logging (e.g. `pino`) with a correlation id per request; verify a manual check that a request's logs are correlated end-to-end
+- [x] 11.1 Add `helmet()` and a `FRONTEND_ORIGIN`-driven CORS allowlist (replacing the old open `cors()` + manual `Access-Control-Allow-Origin` header pair); verify an e2e test that a disallowed origin is rejected
+- [x] 11.2 Add a global exception filter that returns sanitized error responses (no stack traces) when `NODE_ENV=production`; verify a test asserting the response body excludes stack traces in that mode
+- [x] 11.3 Add structured request/error logging (e.g. `pino`) with a correlation id per request; verify a manual check that a request's logs are correlated end-to-end
 
 ## 12. Docker Compose & deployment
 

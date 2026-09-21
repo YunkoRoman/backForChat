@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { ConfigService } from './config/config.service.js';
 
@@ -18,6 +19,9 @@ async function bootstrap() {
     origin: configService.frontendOrigin,
     credentials: true,
   });
+
+  // Apply helmet middleware for security headers
+  app.use(helmet());
 
   // Register cookie parser middleware
   app.use(cookieParser());

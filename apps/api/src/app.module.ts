@@ -1,7 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { APP_GUARD, APP_PIPE } from '@nestjs/core';
+import { APP_GUARD, APP_PIPE, APP_FILTER } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 
 import { AppController } from './app.controller.js';
@@ -14,6 +14,8 @@ import { PresenceModule } from './presence/presence.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { JwtAuthGuard } from './identity/infrastructure/http/guards/jwt-auth.guard.js';
 import { SharedKernelModule } from './shared-kernel/shared-kernel.module.js';
+import { GlobalExceptionFilter } from './shared-kernel/infrastructure/filters/global-exception.filter.js';
+import { CorrelationIdMiddleware } from './shared-kernel/infrastructure/middleware/correlation-id.middleware.js';
 
 @Module({
   imports: [
@@ -48,6 +50,11 @@ import { SharedKernelModule } from './shared-kernel/shared-kernel.module.js';
   controllers: [AppController],
   providers: [
     AppService,
+    // Global exception filter for sanitized error responses
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
     // Global auth guard
     {
       provide: APP_GUARD,
@@ -64,4 +71,9 @@ import { SharedKernelModule } from './shared-kernel/shared-kernel.module.js';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Apply correlation ID middleware to all routes
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}
