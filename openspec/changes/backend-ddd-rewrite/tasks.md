@@ -44,9 +44,9 @@
 
 ## 7. Messaging — infrastructure
 
-- [ ] 7.1 Implement Mongoose schemas `ConversationDocument`, `MembershipDocument` (`conversationId`+`userId` unique index, `lastReadMessageId`), `MessageDocument` (index on `conversationId`+`createdAt`); verify an integration test that duplicate membership insert is rejected
-- [ ] 7.2 Implement `ConversationsController` (`POST /api/v1/conversations`, `GET /api/v1/conversations`, `POST /api/v1/conversations/:id/members`); verify e2e tests covering `specs/messaging/conversations`
-- [ ] 7.3 Implement `MessagesController` (`GET /api/v1/conversations/:id/messages`) for history; verify e2e tests covering the history-retrieval scenarios in `specs/messaging/messages`
+- [x] 7.1 Implement Mongoose schemas `ConversationDocument`, `MembershipDocument` (`conversationId`+`userId` unique index, `lastReadMessageId`), `MessageDocument` (index on `conversationId`+`createdAt`); verify an integration test that duplicate membership insert is rejected
+- [x] 7.2 Implement `ConversationsController` (`POST /api/v1/conversations`, `GET /api/v1/conversations`, `POST /api/v1/conversations/:id/members`); verify e2e tests covering `specs/messaging/conversations`
+- [x] 7.3 Implement `MessagesController` (`GET /api/v1/conversations/:id/messages`) for history; verify e2e tests covering the history-retrieval scenarios in `specs/messaging/messages`
 - [ ] 7.4 Implement the messaging `WebSocketGateway` with JWT-verified handshake (derives `userId` only from the verified token, never a client payload), handling `conversation:join`, `conversation:leave`, `message:send` → emits `message:new`; verify a WS e2e test (socket.io-client) that a connection without a valid token is refused, and that a sent message is delivered to other connected members
 
 ## 8. Read receipts
