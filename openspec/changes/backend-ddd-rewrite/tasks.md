@@ -51,8 +51,8 @@
 
 ## 8. Read receipts
 
-- [ ] 8.1 Implement `MarkConversationRead` use case updating `lastReadMessageId` on `Membership` (member-only, message-must-belong-to-conversation); verify unit tests for both scenarios in `specs/messaging/read-receipts`
-- [ ] 8.2 Wire `message:read` WS event to the use case and emit `message:read:update` to other connected members; verify a WS e2e test that other members receive the updated read position
+- [x] 8.1 Implement `MarkConversationRead` use case updating `lastReadMessageId` on `Membership` (member-only, message-must-belong-to-conversation); verify unit tests for both scenarios in `specs/messaging/read-receipts`
+- [x] 8.2 Wire `message:read` WS event to the use case and emit `message:read:update` to other connected members; verify a WS e2e test that other members receive the updated read position
 
 ## 9. Presence
 

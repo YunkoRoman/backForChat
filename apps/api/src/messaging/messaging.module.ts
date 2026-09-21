@@ -9,6 +9,7 @@ import {
   ListConversations,
   SendMessage,
   GetMessageHistory,
+  MarkConversationRead,
 } from './application/index.js';
 
 // Infrastructure - Persistence
@@ -17,6 +18,7 @@ import { MembershipSchema as MembershipSchemaFactory } from './infrastructure/pe
 import { MessageSchema as MessageSchemaFactory } from './infrastructure/persistence/message.schema.js';
 import { MongooseConversationRepository } from './infrastructure/persistence/mongoose-conversation.repository.js';
 import { MongooseMessageRepository } from './infrastructure/persistence/mongoose-message.repository.js';
+import { MongooseMembershipRepository } from './infrastructure/persistence/mongoose-membership.repository.js';
 
 // Infrastructure - HTTP
 import { ConversationsController } from './infrastructure/http/conversations.controller.js';
@@ -42,6 +44,7 @@ import { IdentityModule } from '../identity/identity.module.js';
     // Repositories
     MongooseConversationRepository,
     MongooseMessageRepository,
+    MongooseMembershipRepository,
 
     // Use Cases
     {
@@ -80,6 +83,15 @@ import { IdentityModule } from '../identity/identity.module.js';
         new GetMessageHistory(conversationRepo, messageRepo),
       inject: [MongooseConversationRepository, MongooseMessageRepository],
     },
+    {
+      provide: MarkConversationRead,
+      useFactory: (
+        conversationRepo: MongooseConversationRepository,
+        messageRepo: MongooseMessageRepository,
+        membershipRepo: MongooseMembershipRepository,
+      ) => new MarkConversationRead(conversationRepo, messageRepo, membershipRepo),
+      inject: [MongooseConversationRepository, MongooseMessageRepository, MongooseMembershipRepository],
+    },
 
     // WebSocket Gateway
     MessagingGateway,
@@ -88,6 +100,7 @@ import { IdentityModule } from '../identity/identity.module.js';
     // Export repositories for other modules
     MongooseConversationRepository,
     MongooseMessageRepository,
+    MongooseMembershipRepository,
     // Export use cases
     CreateOneToOneConversation,
     CreateGroupConversation,
@@ -95,6 +108,7 @@ import { IdentityModule } from '../identity/identity.module.js';
     ListConversations,
     SendMessage,
     GetMessageHistory,
+    MarkConversationRead,
   ],
 })
 export class MessagingModule {}

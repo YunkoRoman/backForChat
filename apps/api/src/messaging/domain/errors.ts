@@ -63,3 +63,11 @@ export class CannotAddMemberToOneToOneConversationError extends DomainError {
     Object.setPrototypeOf(this, CannotAddMemberToOneToOneConversationError.prototype);
   }
 }
+
+export class MessageDoesNotBelongToConversationError extends DomainError {
+  constructor() {
+    super('The message does not belong to this conversation.');
+    this.name = 'MessageDoesNotBelongToConversationError';
+    Object.setPrototypeOf(this, MessageDoesNotBelongToConversationError.prototype);
+  }
+}

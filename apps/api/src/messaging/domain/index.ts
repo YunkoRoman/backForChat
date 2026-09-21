@@ -9,4 +9,5 @@ export {
   MessageTooLongError,
   RequesterNotAMemberError,
   CannotAddMemberToOneToOneConversationError,
+  MessageDoesNotBelongToConversationError,
 } from './errors.js';

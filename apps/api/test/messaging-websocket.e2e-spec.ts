@@ -507,4 +507,278 @@ describe('Messaging - WebSocket Gateway (e2e)', () => {
       });
     });
   });
+
+  describe('Read Receipts', () => {
+    it('should broadcast read position to other connected members', async () => {
+      return new Promise<void>((resolve, reject) => {
+        // Create a 1:1 conversation
+        request(app.getHttpServer())
+          .post('/api/v1/conversations')
+          .set('Authorization', `Bearer ${user1AccessToken}`)
+          .send({
+            type: '1:1',
+            memberId: user2Id,
+          })
+          .expect(201)
+          .end((_err, res) => {
+            if (_err) {
+              reject(_err);
+              return;
+            }
+
+            const conversationId = res.body.conversationId;
+            let messageId: string | null = null;
+            let socket1JoinedRoom = false;
+            let socket2JoinedRoom = false;
+            let readUpdateReceived = false;
+
+            const socket1 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user1AccessToken },
+              reconnection: false,
+            });
+
+            const socket2 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user2AccessToken },
+              reconnection: false,
+            });
+
+            const cleanup = () => {
+              if (socket1.connected) socket1.disconnect();
+              if (socket2.connected) socket2.disconnect();
+            };
+
+            const tryMarkAsRead = () => {
+              if (socket1JoinedRoom && socket2JoinedRoom && messageId) {
+                // Mark the conversation as read
+                socket1.emit('message:read', {
+                  conversationId,
+                  messageId,
+                });
+              }
+            };
+
+            socket1.on('connect', () => {
+              socket1.emit('conversation:join', { conversationId });
+              setTimeout(() => {
+                socket1JoinedRoom = true;
+                tryMarkAsRead();
+              }, 100);
+            });
+
+            socket2.on('connect', () => {
+              socket2.emit('conversation:join', { conversationId });
+              setTimeout(() => {
+                socket2JoinedRoom = true;
+                // Send a message once both have joined
+                if (socket1JoinedRoom) {
+                  socket2.emit('message:send', {
+                    conversationId,
+                    text: 'Test message',
+                  });
+                }
+              }, 150);
+            });
+
+            socket1.on('message:new', (message) => {
+              messageId = message.messageId;
+              tryMarkAsRead();
+            });
+
+            // socket2 should receive the read update from socket1
+            socket2.on('message:read:update', (data) => {
+              expect(data.conversationId).toBe(conversationId);
+              expect(data.userId).toBe(user1Id);
+              expect(data.messageId).toBe(messageId);
+              readUpdateReceived = true;
+              cleanup();
+            });
+
+            socket1.on('error', (_error) => {
+              cleanup();
+              reject(new Error('Socket1 error'));
+            });
+
+            socket2.on('error', (_error) => {
+              cleanup();
+              reject(new Error('Socket2 error'));
+            });
+
+            socket1.on('disconnect', () => {
+              if (socket2.connected) return; // Wait for both
+              if (readUpdateReceived) {
+                resolve();
+              } else {
+                reject(new Error('Read update was not received'));
+              }
+            });
+
+            socket2.on('disconnect', () => {
+              if (socket1.connected) return; // Wait for both
+              if (readUpdateReceived) {
+                resolve();
+              } else {
+                reject(new Error('Read update was not received'));
+              }
+            });
+
+            // Timeout after 10 seconds
+            setTimeout(() => {
+              cleanup();
+              if (!readUpdateReceived) {
+                reject(new Error('Test timed out - read update not received'));
+              }
+            }, 10000);
+          });
+      });
+    });
+
+    it('should reject read attempt from non-member', async () => {
+      return new Promise<void>((resolve, reject) => {
+        // Create a conversation between user1 and user2 (user3 not included)
+        request(app.getHttpServer())
+          .post('/api/v1/conversations')
+          .set('Authorization', `Bearer ${user1AccessToken}`)
+          .send({
+            type: '1:1',
+            memberId: user2Id,
+          })
+          .expect(201)
+          .end((_err, res) => {
+            if (_err) {
+              reject(_err);
+              return;
+            }
+
+            const conversationId = res.body.conversationId;
+            let messageId: string | null = null;
+            let socket1JoinedRoom = false;
+            let socket2JoinedRoom = false;
+
+            const socket1 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user1AccessToken },
+              reconnection: false,
+            });
+
+            const socket2 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user2AccessToken },
+              reconnection: false,
+            });
+
+            // Try to connect user3 (who is not a member)
+            const socket3 = io(`http://localhost:${serverPort}`, {
+              auth: { token: user3AccessToken },
+              reconnection: false,
+            });
+
+            let errorReceived = false;
+
+            const cleanup = () => {
+              if (socket1.connected) socket1.disconnect();
+              if (socket2.connected) socket2.disconnect();
+              if (socket3.connected) socket3.disconnect();
+            };
+
+            const tryReadAsNonMember = () => {
+              if (socket1JoinedRoom && socket2JoinedRoom && messageId && socket3.connected) {
+                // Try to mark as read from non-member socket
+                socket3.emit('message:read', {
+                  conversationId,
+                  messageId,
+                });
+              }
+            };
+
+            socket1.on('connect', () => {
+              socket1.emit('conversation:join', { conversationId });
+              setTimeout(() => {
+                socket1JoinedRoom = true;
+                tryReadAsNonMember();
+              }, 100);
+            });
+
+            socket2.on('connect', () => {
+              socket2.emit('conversation:join', { conversationId });
+              setTimeout(() => {
+                socket2JoinedRoom = true;
+                // Send a message once both have joined
+                if (socket1JoinedRoom) {
+                  socket2.emit('message:send', {
+                    conversationId,
+                    text: 'Test message',
+                  });
+                }
+              }, 150);
+            });
+
+            socket1.on('message:new', (message) => {
+              messageId = message.messageId;
+              tryReadAsNonMember();
+            });
+
+            socket3.on('connect', () => {
+              tryReadAsNonMember();
+            });
+
+            socket3.on('message:read:error', (error) => {
+              if (error.message && error.message.includes('not a member')) {
+                errorReceived = true;
+              }
+              cleanup();
+            });
+
+            socket1.on('error', (_error) => {
+              cleanup();
+              reject(new Error('Socket1 error'));
+            });
+
+            socket2.on('error', (_error) => {
+              cleanup();
+              reject(new Error('Socket2 error'));
+            });
+
+            socket3.on('error', (_error) => {
+              // May be disconnected or error emitted
+              if (!errorReceived) {
+                cleanup();
+              }
+            });
+
+            socket1.on('disconnect', () => {
+              if (socket2.connected || socket3.connected) return;
+              if (errorReceived) {
+                resolve();
+              } else {
+                reject(new Error('Did not receive expected error for non-member'));
+              }
+            });
+
+            socket2.on('disconnect', () => {
+              if (socket1.connected || socket3.connected) return;
+              if (errorReceived) {
+                resolve();
+              } else {
+                reject(new Error('Did not receive expected error for non-member'));
+              }
+            });
+
+            socket3.on('disconnect', () => {
+              if (socket1.connected || socket2.connected) return;
+              if (errorReceived) {
+                resolve();
+              } else {
+                reject(new Error('Did not receive expected error for non-member'));
+              }
+            });
+
+            // Timeout after 10 seconds
+            setTimeout(() => {
+              cleanup();
+              if (!errorReceived) {
+                reject(new Error('Test timed out - error not received'));
+              }
+            }, 10000);
+          });
+      });
+    });
+  });
 });

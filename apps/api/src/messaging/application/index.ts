@@ -4,3 +4,4 @@ export { AddMemberToConversation, type AddMemberToConversationRequest, type AddM
 export { ListConversations, type ListConversationsRequest, type ListConversationsResponse } from './list-conversations.use-case.js';
 export { SendMessage, type SendMessageRequest, type SendMessageResponse } from './send-message.use-case.js';
 export { GetMessageHistory, type GetMessageHistoryRequest, type GetMessageHistoryResponse } from './get-message-history.use-case.js';
+export { MarkConversationRead, type MarkConversationReadRequest, type MarkConversationReadResponse } from './mark-conversation-read.use-case.js';

@@ -9,7 +9,7 @@ import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtTokenService } from '../../../identity/infrastructure/adapters/jwt-token.service.js';
 import { InvalidTokenError } from '../../../identity/domain/errors.js';
-import { SendMessage, SendMessageRequest } from '../../application/index.js';
+import { SendMessage, SendMessageRequest, MarkConversationRead, MarkConversationReadRequest } from '../../application/index.js';
 import { MongooseConversationRepository } from '../persistence/mongoose-conversation.repository.js';
 
 /**
@@ -50,6 +50,7 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
   constructor(
     private jwtTokenService: JwtTokenService,
     private sendMessage: SendMessage,
+    private markConversationRead: MarkConversationRead,
     private conversationRepository: MongooseConversationRepository,
   ) {}
 
@@ -270,6 +271,78 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
     } catch (error) {
       this.logger.error(`Unexpected error in message:send handler:`, error);
       socket.emit('message:send:error', { message: 'Internal server error' });
+    }
+  }
+
+  /**
+   * Mark a conversation as read up to a specific message
+   *
+   * Delegates to the MarkConversationRead use case, which validates:
+   * - The requester is a member of the conversation
+   * - The message belongs to the conversation
+   *
+   * On success, broadcasts the updated read position to all members in the conversation room.
+   * On failure, emits an error event back to the sender only.
+   */
+  @SubscribeMessage('message:read')
+  handleMessageRead(
+    socket: AuthenticatedSocket,
+    data: { conversationId: string; messageId: string },
+  ): void {
+    this.handleMessageReadAsync(socket, data).catch((error) => {
+      this.logger.error(`Unhandled error in message:read:`, error);
+    });
+  }
+
+  private async handleMessageReadAsync(
+    socket: AuthenticatedSocket,
+    data: { conversationId: string; messageId: string },
+  ): Promise<void> {
+    try {
+      const userId = socket.data.userId;
+      if (!userId) {
+        this.logger.warn(`message:read from unauthenticated socket ${socket.id}`);
+        socket.emit('message:read:error', { message: 'Not authenticated' });
+        return;
+      }
+
+      const { conversationId, messageId } = data;
+
+      // Call the MarkConversationRead use case
+      const request: MarkConversationReadRequest = {
+        requesterId: userId,
+        conversationId,
+        messageId,
+      };
+
+      const result = await this.markConversationRead.execute(request);
+
+      if (!result.isOk()) {
+        // Use case returned an error - emit it back to the sender only
+        const error = result.error;
+        this.logger.debug(
+          `message:read failed for user ${userId} in conversation ${conversationId}: ${error.constructor.name}`,
+        );
+        socket.emit('message:read:error', { message: error.message });
+        return;
+      }
+
+      // Success - broadcast the read position to all members in the conversation room
+      const response = result.value;
+      const roomName = `conversation:${conversationId}`;
+
+      this.server.to(roomName).emit('message:read:update', {
+        conversationId: response.conversationId,
+        userId: response.userId,
+        messageId: response.messageId,
+      });
+
+      this.logger.debug(
+        `User ${userId} marked conversation ${conversationId} as read up to message ${messageId}`,
+      );
+    } catch (error) {
+      this.logger.error(`Unexpected error in message:read handler:`, error);
+      socket.emit('message:read:error', { message: 'Internal server error' });
     }
   }
 }

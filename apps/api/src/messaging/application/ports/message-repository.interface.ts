@@ -27,4 +27,11 @@ export interface MessageRepository extends Repository<Message, string> {
     conversationId: string,
     cursor: MessageCursor,
   ): Promise<MessagePage>;
+
+  /**
+   * Find a message by its ID.
+   * @param id The message ID
+   * @returns The message if found, null otherwise
+   */
+  findById(id: string): Promise<Message | null>;
 }
