@@ -15,11 +15,11 @@
 
 ## 3. Identity — domain & application
 
-- [ ] 3.1 Implement `User` aggregate, `Email` value object (format validation), `Credentials` value object (wraps a password hash, never a plaintext password) in `identity/domain`; verify unit tests reject an invalid email and confirm `Credentials` has no plaintext accessor
-- [ ] 3.2 Implement `RegisterUser` use case (application layer) calling a `UserRepository` interface and a `PasswordHasher` interface; verify unit test rejects a duplicate email and a weak password per `specs/identity/authentication`
-- [ ] 3.3 Implement `LoginUser` use case issuing access + refresh tokens via a `TokenService` interface; verify unit test returns the same generic error for wrong password and unknown email
-- [ ] 3.4 Implement `RefreshSession` use case with rotation and reuse-detection (revoke all sessions on reused-token detection); verify unit tests for rotate-success, reuse-detected, and revoke-all-on-reuse
-- [ ] 3.5 Implement `LogoutUser` use case revoking the current refresh token; verify unit test confirms the token can no longer be exchanged after logout
+- [x] 3.1 Implement `User` aggregate, `Email` value object (format validation), `Credentials` value object (wraps a password hash, never a plaintext password) in `identity/domain`; verify unit tests reject an invalid email and confirm `Credentials` has no plaintext accessor
+- [x] 3.2 Implement `RegisterUser` use case (application layer) calling a `UserRepository` interface and a `PasswordHasher` interface; verify unit test rejects a duplicate email and a weak password per `specs/identity/authentication`
+- [x] 3.3 Implement `LoginUser` use case issuing access + refresh tokens via a `TokenService` interface; verify unit test returns the same generic error for wrong password and unknown email
+- [x] 3.4 Implement `RefreshSession` use case with rotation and reuse-detection (revoke all sessions on reused-token detection); verify unit tests for rotate-success, reuse-detected, and revoke-all-on-reuse
+- [x] 3.5 Implement `LogoutUser` use case revoking the current refresh token; verify unit test confirms the token can no longer be exchanged after logout
 
 ## 4. Identity — infrastructure
 
