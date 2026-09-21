@@ -23,17 +23,17 @@
 
 ## 4. Identity — infrastructure
 
-- [ ] 4.1 Implement Mongoose schemas `UserDocument` (email unique index, `passwordHash` with `select: false`) and `RefreshTokenDocument` (`userId`, `tokenHash`, `expiresAt`, `replacedByToken`) implementing the repository interfaces from section 3; verify a uniqueness-constraint integration test on email
-- [ ] 4.2 Implement `argon2id` adapter for the `PasswordHasher` interface; verify a round-trip hash/verify unit test and that the stored value is never the plaintext input
-- [ ] 4.3 Implement JWT adapter for `TokenService` using `@nestjs/jwt` (15 min access token, longer-lived refresh token) reading secrets from `ConfigModule`; verify a unit test that an expired token fails verification
-- [ ] 4.4 Implement `AuthController` (`POST /api/v1/auth/register`, `/login`, `/refresh`, `/logout`) with DTOs validated by `class-validator`; verify e2e tests (via `mongodb-memory-server` + supertest) covering every scenario in `specs/identity/authentication`
-- [ ] 4.5 Implement global `JwtAuthGuard` (registered via `APP_GUARD`) and `@Public()` decorator; verify e2e test that a protected route without a token returns 401 and a `@Public()` route does not
-- [ ] 4.6 Implement global `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })`; verify e2e test that an extra/unexpected field (e.g. a `$ne` object) in a request body is rejected rather than reaching a query
-- [ ] 4.7 Add `@nestjs/throttler` with a stricter limit on `/auth/login`; verify e2e test that exceeding the limit returns a rate-limit error per `specs/identity/authentication`
+- [x] 4.1 Implement Mongoose schemas `UserDocument` (email unique index, `passwordHash` with `select: false`) and `RefreshTokenDocument` (`userId`, `tokenHash`, `expiresAt`, `replacedByToken`) implementing the repository interfaces from section 3; verify a uniqueness-constraint integration test on email
+- [x] 4.2 Implement `argon2id` adapter for the `PasswordHasher` interface; verify a round-trip hash/verify unit test and that the stored value is never the plaintext input
+- [x] 4.3 Implement JWT adapter for `TokenService` using `@nestjs/jwt` (15 min access token, longer-lived refresh token) reading secrets from `ConfigModule`; verify a unit test that an expired token fails verification
+- [x] 4.4 Implement `AuthController` (`POST /api/v1/auth/register`, `/login`, `/refresh`, `/logout`) with DTOs validated by `class-validator`; verify e2e tests (via `mongodb-memory-server` + supertest) covering every scenario in `specs/identity/authentication`
+- [x] 4.5 Implement global `JwtAuthGuard` (registered via `APP_GUARD`) and `@Public()` decorator; verify e2e test that a protected route without a token returns 401 and a `@Public()` route does not
+- [x] 4.6 Implement global `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })`; verify e2e test that an extra/unexpected field (e.g. a `$ne` object) in a request body is rejected rather than reaching a query
+- [x] 4.7 Add `@nestjs/throttler` with a stricter limit on `/auth/login`; verify e2e test that exceeding the limit returns a rate-limit error per `specs/identity/authentication`
 
 ## 5. Identity — user directory
 
-- [ ] 5.1 Implement `ListUsers` use case and `UsersController` (`GET /api/v1/users`), excluding the requester, paginated; verify e2e tests for both scenarios in `specs/identity/user-directory`
+- [x] 5.1 Implement `ListUsers` use case and `UsersController` (`GET /api/v1/users`), excluding the requester, paginated; verify e2e tests for both scenarios in `specs/identity/user-directory`
 
 ## 6. Messaging — domain & application
 

@@ -10,6 +10,9 @@ export type { RefreshSessionRequest, RefreshSessionResponse } from './refresh-se
 export { LogoutUser } from './logout-user.use-case.js';
 export type { LogoutUserRequest, LogoutUserResponse } from './logout-user.use-case.js';
 
+export { ListUsers } from './list-users.use-case.js';
+export type { ListUsersRequest, ListUsersResponse } from './list-users.use-case.js';
+
 export type {
   UserRepository,
   PasswordHasher,
