@@ -2,16 +2,16 @@
 
 ## 1. Monorepo & tooling setup
 
-- [ ] 1.1 Create `apps/api` as a new NestJS project (Nest CLI or manual scaffold) with TypeScript strict mode; verify `npm run build` succeeds with no emitted errors
-- [ ] 1.2 Set up root workspace tooling (npm/pnpm workspaces covering `apps/api` and the future `apps/web`); verify `npm install` from repo root resolves `apps/api`'s dependencies
-- [ ] 1.3 Add `ConfigModule` with a Zod (or `class-validator`-based) env schema (`MONGO_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `RABBITMQ_URL`, `FRONTEND_ORIGIN`, `PORT`); verify the app fails fast with a clear error when a required var is missing
-- [ ] 1.4 Add `.env.example` with placeholder values for every var from 1.3 and confirm `.env` is in `.gitignore`
-- [ ] 1.5 Add ESLint + Prettier config for `apps/api`; verify `npm run lint` runs clean on the scaffold
+- [x] 1.1 Create `apps/api` as a new NestJS project (Nest CLI or manual scaffold) with TypeScript strict mode; verify `npm run build` succeeds with no emitted errors
+- [x] 1.2 Set up root workspace tooling (npm/pnpm workspaces covering `apps/api` and the future `apps/web`); verify `npm install` from repo root resolves `apps/api`'s dependencies
+- [x] 1.3 Add `ConfigModule` with a Zod (or `class-validator`-based) env schema (`MONGO_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `RABBITMQ_URL`, `FRONTEND_ORIGIN`, `PORT`); verify the app fails fast with a clear error when a required var is missing
+- [x] 1.4 Add `.env.example` with placeholder values for every var from 1.3 and confirm `.env` is in `.gitignore`
+- [x] 1.5 Add ESLint + Prettier config for `apps/api`; verify `npm run lint` runs clean on the scaffold
 
 ## 2. Shared kernel
 
-- [ ] 2.1 Implement `DomainError` base class and a `Result<T, E>`-style outcome type in `apps/api/src/shared-kernel/`; verify unit tests cover success and failure construction
-- [ ] 2.2 Define repository interface conventions (e.g. a base `Repository<T, Id>` interface) used by every module's `application` layer; verify identity/messaging/presence modules can import it without importing Nest or Mongoose into `domain/`
+- [x] 2.1 Implement `DomainError` base class and a `Result<T, E>`-style outcome type in `apps/api/src/shared-kernel/`; verify unit tests cover success and failure construction
+- [x] 2.2 Define repository interface conventions (e.g. a base `Repository<T, Id>` interface) used by every module's `application` layer; verify identity/messaging/presence modules can import it without importing Nest or Mongoose into `domain/`
 
 ## 3. Identity — domain & application
 

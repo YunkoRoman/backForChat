@@ -1,0 +1,9 @@
+{
+  "name": "backforchat",
+  "version": "1.0.0",
+  "description": "Chat application with NestJS backend",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ]
+}
