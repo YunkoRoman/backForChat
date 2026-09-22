@@ -1,7 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@6..144,400;6..144,500&family=Manrope:wght@400;600;700;800&display=swap');
 
-@config "../tailwind.config.ts";
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@config "../tailwind.config.ts";
