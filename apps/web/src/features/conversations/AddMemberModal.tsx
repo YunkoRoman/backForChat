@@ -26,7 +26,7 @@ export function AddMemberModal({
   currentMemberIds,
 }: AddMemberModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const { data: usersData } = useUsers();
+  const { data: usersData } = useUsers(isOpen);
   const addMember = useAddMemberToConversation();
 
   const users = useMemo(() => usersData?.users ?? [], [usersData]);
@@ -88,6 +88,7 @@ export function AddMemberModal({
           maxHeight: '80vh',
           display: 'flex',
           flexDirection: 'column',
+          overflowY: 'auto',
           boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
         }}
         onClick={(e) => e.stopPropagation()}

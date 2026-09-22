@@ -62,6 +62,19 @@ export function ChatPage() {
         return; // MessageList handles this
       }
 
+      // Conversation not in the cached list yet - most likely we were just
+      // added to it (a brand new 1:1 or group) and haven't fetched it.
+      // Refetch the list from the server so it shows up, rather than
+      // silently dropping the notification.
+      const cachedConversations = queryClient.getQueryData<Conversation[]>(['conversations']);
+      if (
+        Array.isArray(cachedConversations) &&
+        !cachedConversations.some((c) => c.conversationId === messageData.conversationId)
+      ) {
+        void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        return;
+      }
+
       // For background conversations, update the conversation list to bump to top
       // We do this by re-sorting conversations based on the new message timestamp
       queryClient.setQueryData(
@@ -77,7 +90,7 @@ export function ChatPage() {
           );
 
           if (conversationIndex === -1) {
-            return oldData; // Conversation not in list
+            return oldData;
           }
 
           // Create a new array with the updated conversation moved to the top.

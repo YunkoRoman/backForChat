@@ -31,7 +31,7 @@ export function NewConversationModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
 
-  const { data: usersData } = useUsers();
+  const { data: usersData } = useUsers(isOpen);
   const users = useMemo(() => usersData?.users ?? [], [usersData]);
 
   const createOneToOne = useCreateOneToOneConversation();
@@ -123,6 +123,7 @@ export function NewConversationModal({
           maxHeight: '80vh',
           display: 'flex',
           flexDirection: 'column',
+          overflowY: 'auto',
           boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -366,7 +367,7 @@ function GroupConversationTab({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* Group name input */}
-      <div style={{ padding: '16px 24px', borderBottom: '1px solid #EFEAE3' }}>
+      <div style={{ padding: '16px 24px', borderBottom: '1px solid #EFEAE3', flexShrink: 0 }}>
         <input
           {...groupNameRegister}
           type="text"
@@ -387,7 +388,7 @@ function GroupConversationTab({
       </div>
 
       {/* Search */}
-      <div style={{ padding: '16px 24px', borderBottom: '1px solid #EFEAE3' }}>
+      <div style={{ padding: '16px 24px', borderBottom: '1px solid #EFEAE3', flexShrink: 0 }}>
         <div
           style={{
             display: 'flex',
@@ -421,7 +422,7 @@ function GroupConversationTab({
       </div>
 
       {/* User list with checkboxes */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 24px' }}>
         {users.length === 0 ? (
           <div
             style={{
@@ -497,6 +498,7 @@ function GroupConversationTab({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexShrink: 0,
         }}
       >
         {error && <div style={{ color: '#C1552C', fontSize: '13px' }}>{error}</div>}
