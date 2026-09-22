@@ -16,6 +16,7 @@ import {
 import { CreateConversationDto, ConversationTypeEnum } from './dtos/create-conversation.dto.js';
 import { AddMemberDto } from './dtos/add-member.dto.js';
 import type { AuthenticatedRequest } from '../../../identity/infrastructure/http/types/authenticated-request.js';
+import { MessagingGateway } from '../gateway/messaging.gateway.js';
 @Controller('conversations')
 export class ConversationsController {
   constructor(
@@ -23,6 +24,7 @@ export class ConversationsController {
     private createGroupConversationUseCase: CreateGroupConversation,
     private addMemberToConversationUseCase: AddMemberToConversation,
     private listConversationsUseCase: ListConversations,
+    private messagingGateway: MessagingGateway,
   ) {}
 
   @Post()
@@ -61,6 +63,10 @@ export class ConversationsController {
         }
 
         const response = result.value;
+        this.messagingGateway.joinMembersToConversationRoom(
+          response.conversationId,
+          response.memberIds,
+        );
         return {
           conversationId: response.conversationId,
           type: response.type,
@@ -95,6 +101,10 @@ export class ConversationsController {
         }
 
         const response = result.value;
+        this.messagingGateway.joinMembersToConversationRoom(
+          response.conversationId,
+          response.memberIds,
+        );
         return {
           conversationId: response.conversationId,
           type: response.type,
@@ -174,6 +184,9 @@ export class ConversationsController {
       }
 
       const response = result.value;
+      this.messagingGateway.joinMembersToConversationRoom(response.conversationId, [
+        dto.userId,
+      ]);
       return {
         conversationId: response.conversationId,
         memberIds: response.memberIds,

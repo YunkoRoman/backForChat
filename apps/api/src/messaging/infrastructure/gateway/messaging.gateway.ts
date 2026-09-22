@@ -105,6 +105,17 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
 
       this.logger.debug(`User ${userId} connected via socket ${socket.id}`);
 
+      // Join the Socket.IO room for every conversation this user is a member
+      // of, not just whichever one the client later marks "active" via
+      // conversation:join. Without this, message:new/message:read:update for
+      // a conversation the user hasn't opened yet (e.g. one they were just
+      // added to) never reaches them, since server.to(room).emit() only
+      // reaches sockets that joined that room.
+      const memberConversations = await this.conversationRepository.findAllForUser(userId);
+      for (const conversation of memberConversations) {
+        await socket.join(`conversation:${conversation.id}`);
+      }
+
       // Track this connection in the presence tracker
       const isFirstConnection = this.presenceTracker.addConnection(userId, socket.id);
 
@@ -172,6 +183,28 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
           error,
         );
       });
+    }
+  }
+
+  /**
+   * Join every currently-connected socket of the given users to a
+   * conversation's room.
+   *
+   * Called by ConversationsController right after a conversation is created
+   * or a member is added, so a member who is already connected starts
+   * receiving message:new / message:read:update / typing:update for it
+   * immediately - without this, they'd only join on handleConnection (i.e.
+   * their next reconnect) or by explicitly opening the conversation in the
+   * UI, which defeats realtime delivery for a conversation they haven't
+   * opened yet.
+   */
+  joinMembersToConversationRoom(conversationId: string, memberIds: string[]): void {
+    const roomName = `conversation:${conversationId}`;
+    for (const memberId of memberIds) {
+      const socketIds = this.presenceTracker.getSocketsForUser(memberId);
+      for (const socketId of socketIds) {
+        void this.server.sockets.sockets.get(socketId)?.join(roomName);
+      }
     }
   }
 
