@@ -1,1 +1,0 @@
-module.exports.registrationController = require('./registrationControl')
